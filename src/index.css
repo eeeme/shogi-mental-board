@@ -1,0 +1,88 @@
+@import 'tailwindcss';
+
+/*
+  デザイン方針: 「静かな鍛錬」（docs/design-brief.md A案）
+  - ダークモード、墨（すみ）と余白を土台に
+  - 光る一マスが signature（暖色の行灯のような灯り）
+  - 数字は等幅（座標・反応時間・正答率）
+*/
+@theme {
+  /* 墨（背景〜面） */
+  --color-ink-950: #09090b;
+  --color-ink-900: #0e0e10;
+  --color-ink-850: #141417;
+  --color-ink-800: #1a1a1e;
+  --color-ink-700: #26262c;
+  --color-ink-600: #34343c;
+
+  /* 盤の罫線・和紙の縁 */
+  --color-line: #3a3a42;
+  --color-line-soft: #2a2a30;
+
+  /* 文字 */
+  --color-sumi-100: #ecebe8;
+  --color-sumi-300: #b8b6b0;
+  --color-sumi-500: #85837c;
+
+  /* 光る一マス（行灯の灯り） */
+  --color-glow: #e0a94b;
+  --color-glow-soft: #f0cb86;
+
+  /* 盤の木地（ほのかに） */
+  --color-kaya: #2a2620;
+
+  --font-mono:
+    ui-monospace, 'SF Mono', 'Menlo', 'Cascadia Code', 'Consolas', monospace;
+  --font-sans:
+    system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-ink-900);
+  color: var(--color-sumi-100);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* 等幅で読む数字（座標・計測値） */
+.tnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* 光る一マスの signature グロー */
+.cell-glow {
+  background-color: color-mix(in srgb, var(--color-glow) 22%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-glow) 55%, transparent),
+    0 0 18px 2px color-mix(in srgb, var(--color-glow) 35%, transparent);
+}
+
+/* モーション低減の尊重 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* フォーカスの可視化（アクセシビリティ） */
+:focus-visible {
+  outline: 2px solid var(--color-glow);
+  outline-offset: 2px;
+}
