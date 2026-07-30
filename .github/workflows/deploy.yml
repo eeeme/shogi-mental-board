@@ -24,10 +24,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      # Pages が未設定でも初回に自動で有効化する
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
+      # ※ 事前にリポジトリ Settings > Pages > Source を「GitHub Actions」に設定しておくこと
       - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
