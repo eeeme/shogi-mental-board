@@ -48,7 +48,7 @@ export const FEATURES: FeatureMeta[] = [
     title: 'ただ読み上げ',
     summary: '座標を連続で読み上げるだけ。画面を見ず「ながら」でOK',
     scope: 'MVP',
-    status: 'coming-soon',
+    status: 'available',
   },
   {
     id: 'recall',
