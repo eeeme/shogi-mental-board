@@ -4,9 +4,11 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// GitHub Pages のプロジェクトサイトは /<repo>/ 配下に置かれるため、
-// 本番ビルドのみ base を設定する。ローカル開発は '/' のまま。
-const base = process.env.NODE_ENV === 'production' ? '/shogi-mental-board/' : '/'
+// base はデプロイ先で変わる:
+//  - ルート配信（Vercel/Netlify、ローカル）: '/'
+//  - GitHub Pages のプロジェクトサイト: '/shogi-mental-board/'
+// 環境変数 BASE_PATH で指定（未指定なら '/'）。Pages のワークフローで設定する。
+const base = process.env.BASE_PATH ?? '/'
 
 // https://vite.dev/config/
 export default defineConfig({

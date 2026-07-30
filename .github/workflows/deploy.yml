@@ -26,7 +26,10 @@ jobs:
           cache: npm
       # ※ 事前にリポジトリ Settings > Pages > Source を「GitHub Actions」に設定しておくこと
       - run: npm ci
+      # Pages はプロジェクトサイト（/<repo>/ 配下）なので base を合わせる
       - run: npm run build
+        env:
+          BASE_PATH: /shogi-mental-board/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
