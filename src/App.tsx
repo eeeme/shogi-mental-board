@@ -8,6 +8,7 @@ import { Settings } from './pages/Settings'
 import { SequenceScreen } from './features/sequence/SequenceScreen'
 import { TapCellScreen } from './features/tapCell/TapCellScreen'
 import { ReverseScreen } from './features/reverse/ReverseScreen'
+import { ListenScreen } from './features/listen/ListenScreen'
 import { getFeature, type FeatureId } from './features/registry'
 import { useModeIntro } from './store/useModeIntro'
 
@@ -25,6 +26,7 @@ function FeatureScreen({
   if (id === 'reverse') return <ReverseScreen onBack={onBack} onInfo={onInfo} />
   if (id === 'sequence')
     return <SequenceScreen onBack={onBack} onInfo={onInfo} />
+  if (id === 'listen') return <ListenScreen onBack={onBack} onInfo={onInfo} />
 
   // 未接続の機能はプレースホルダ（後続フェーズで各画面を接続）。
   const meta = getFeature(id)

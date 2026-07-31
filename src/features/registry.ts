@@ -11,6 +11,7 @@ export type FeatureId =
   | 'tsume'
   | 'stats'
   | 'support'
+  | 'listen'
 
 export type FeatureStatus = 'available' | 'coming-soon'
 
@@ -89,6 +90,16 @@ export const FEATURES: FeatureMeta[] = [
     summary: '将来の投げ銭リンク置き場（今はプレースホルダ）',
     scope: '後続',
     status: 'coming-soon',
+  },
+  {
+    id: 'listen',
+    no: 8,
+    title: 'ただ読み上げ',
+    summary: '座標をひたすら音声で読み上げるだけ（受動・ながら聴き）',
+    howto:
+      '座標を停止するまで読み上げ続けます。タップも答え合わせもありません。通勤中などの「ながら聴き」に。発話間隔と範囲を設定できます。',
+    scope: 'MVP',
+    status: 'available',
   },
 ]
 
