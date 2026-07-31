@@ -32,7 +32,7 @@ export const FEATURES: FeatureMeta[] = [
     title: '読み上げ→マス押下',
     summary: '座標を1つ提示 → 該当マスを即タップ（逐次1問1答）',
     scope: 'MVP',
-    status: 'coming-soon',
+    status: 'available',
   },
   {
     id: 'reverse',
