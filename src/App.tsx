@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BottomNav, type Tab } from './components/BottomNav'
 import { BackBar } from './components/BackBar'
+import { ModeIntroModal } from './components/ModeIntroModal'
 import { Home } from './pages/Home'
 import { Stats } from './pages/Stats'
 import { Settings } from './pages/Settings'
@@ -8,12 +9,22 @@ import { SequenceScreen } from './features/sequence/SequenceScreen'
 import { TapCellScreen } from './features/tapCell/TapCellScreen'
 import { ReverseScreen } from './features/reverse/ReverseScreen'
 import { getFeature, type FeatureId } from './features/registry'
+import { useModeIntro } from './store/useModeIntro'
 
 /** 開いている機能画面（ホームのカードから遷移）。 */
-function FeatureScreen({ id, onBack }: { id: FeatureId; onBack: () => void }) {
-  if (id === 'tapCell') return <TapCellScreen onBack={onBack} />
-  if (id === 'reverse') return <ReverseScreen onBack={onBack} />
-  if (id === 'sequence') return <SequenceScreen onBack={onBack} />
+function FeatureScreen({
+  id,
+  onBack,
+  onInfo,
+}: {
+  id: FeatureId
+  onBack: () => void
+  onInfo: () => void
+}) {
+  if (id === 'tapCell') return <TapCellScreen onBack={onBack} onInfo={onInfo} />
+  if (id === 'reverse') return <ReverseScreen onBack={onBack} onInfo={onInfo} />
+  if (id === 'sequence')
+    return <SequenceScreen onBack={onBack} onInfo={onInfo} />
 
   // 未接続の機能はプレースホルダ（後続フェーズで各画面を接続）。
   const meta = getFeature(id)
@@ -31,6 +42,8 @@ function FeatureScreen({ id, onBack }: { id: FeatureId; onBack: () => void }) {
 function App() {
   const [tab, setTab] = useState<Tab>('home')
   const [feature, setFeature] = useState<FeatureId | null>(null)
+  const [introFor, setIntroFor] = useState<FeatureId | null>(null)
+  const isDismissed = useModeIntro((s) => s.isDismissed)
 
   const openFeature = (id: FeatureId) => {
     // 統計はボトムナビのタブに集約する。
@@ -40,11 +53,19 @@ function App() {
       return
     }
     setFeature(id)
+    // モード選択時、未読なら説明モーダルを表示してから開始する。
+    if (!isDismissed(id)) setIntroFor(id)
   }
 
   const changeTab = (t: Tab) => {
     setFeature(null)
+    setIntroFor(null)
     setTab(t)
+  }
+
+  const closeFeature = () => {
+    setFeature(null)
+    setIntroFor(null)
   }
 
   const renderTab = () => {
@@ -62,12 +83,19 @@ function App() {
     <div className="flex min-h-full flex-col">
       <main className="flex-1 pb-20">
         {feature ? (
-          <FeatureScreen id={feature} onBack={() => setFeature(null)} />
+          <FeatureScreen
+            id={feature}
+            onBack={closeFeature}
+            onInfo={() => setIntroFor(feature)}
+          />
         ) : (
           renderTab()
         )}
       </main>
       {!feature && <BottomNav tab={tab} onChange={changeTab} />}
+      {introFor && (
+        <ModeIntroModal id={introFor} onClose={() => setIntroFor(null)} />
+      )}
     </div>
   )
 }
