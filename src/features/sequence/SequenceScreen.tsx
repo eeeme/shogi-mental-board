@@ -1,29 +1,36 @@
 /**
- * 機能③「ただ読み上げ」画面。
- * 座標を連続で読み上げるだけの受動モード。画面を見ずに「ながら」で成立する。
- * パラメータ: 発話間隔（スピード）/ 出題範囲（全盤・一部）/ 連続数。
+ * 機能③「系列記憶（順番タップ→答え合わせ）」画面。
+ * 座標を N 個順に提示（盤面/符号/音声のうち1つ以上オン）→ 記憶 →
+ * 示された順に N 個タップ → 答え合わせ（順序も一致で正解）。
  */
 import { useEffect, useRef, useState } from 'react'
 import { BackBar } from '../../components/BackBar'
 import { ShogiBoard } from '../../components/ShogiBoard'
 import { cellLabel, type Cell } from '../../lib/coords'
 import { delay, isTTSSupported, tts } from '../../lib/tts'
+import { now } from '../../lib/time'
 import { useSettings } from '../../store/useSettings'
+import { SessionRecorder } from '../../lib/sessionRecorder'
+import { FULL_RANGE, normalizeRange, rangeSize } from '../../lib/range'
+import type { CellRange } from '../../lib/range'
 import {
-  FULL_RANGE,
-  normalizeRange,
-  randomCellInRange,
-  rangeSize,
-  type CellRange,
-} from './listenEngine'
+  ALL_CHANNELS,
+  generateSequence,
+  judgeSequence,
+  toggleChannel,
+  type Channel,
+  type Channels,
+  type SequenceJudgement,
+} from './sequenceEngine'
 
-type CountPreset = 10 | 20 | 50 | 0 // 0 = エンドレス
-const COUNT_PRESETS: { value: CountPreset; label: string }[] = [
-  { value: 10, label: '10' },
-  { value: 20, label: '20' },
-  { value: 50, label: '50' },
-  { value: 0, label: 'エンドレス' },
-]
+type Phase = 'config' | 'present' | 'recall' | 'result'
+
+const N_PRESETS = [3, 4, 5, 6, 7]
+const CHANNEL_LABEL: Record<Channel, string> = {
+  board: '盤面',
+  symbol: '符号',
+  audio: '音声',
+}
 
 function RangeRow({
   label,
@@ -69,12 +76,13 @@ function RangeRow({
   )
 }
 
-export function ListenScreen({ onBack }: { onBack: () => void }) {
+export function SequenceScreen({ onBack }: { onBack: () => void }) {
   const { rate, yomiStyle, boardOrientation } = useSettings()
   const supported = isTTSSupported()
 
   // パラメータ
-  const [intervalSec, setIntervalSec] = useState(1.5)
+  const [n, setN] = useState(4)
+  const [intervalSec, setIntervalSec] = useState(1.2)
   const [rangeMode, setRangeMode] = useState<'all' | 'partial'>('all')
   const [partialRange, setPartialRange] = useState<CellRange>({
     fileMin: 7,
@@ -82,133 +90,198 @@ export function ListenScreen({ onBack }: { onBack: () => void }) {
     rankMin: 1,
     rankMax: 3,
   })
-  const [count, setCount] = useState<CountPreset>(20)
+  const [channels, setChannels] = useState<Channels>({
+    board: true,
+    symbol: false,
+    audio: true,
+  })
 
   // 実行状態
-  const [running, setRunning] = useState(false)
-  const [current, setCurrent] = useState<Cell | null>(null)
-  const [done, setDone] = useState(0)
+  const [phase, setPhase] = useState<Phase>('config')
+  const [sequence, setSequence] = useState<Cell[]>([])
+  const [presentIndex, setPresentIndex] = useState(-1)
+  const [taps, setTaps] = useState<Cell[]>([])
+  const [judgement, setJudgement] = useState<SequenceJudgement | null>(null)
+
   const abortRef = useRef<AbortController | null>(null)
+  const recorderRef = useRef<SessionRecorder | null>(null)
+  const recallStartRef = useRef(0)
 
   const range = rangeMode === 'all' ? FULL_RANGE : normalizeRange(partialRange)
 
-  // アンマウント時は必ず停止
   useEffect(() => {
     return () => {
       abortRef.current?.abort()
       tts.cancel()
+      void recorderRef.current?.finish()
     }
   }, [])
 
-  const stop = () => {
+  const backToConfig = () => {
     abortRef.current?.abort()
     tts.cancel()
+    setPhase('config')
+    setPresentIndex(-1)
+    setTaps([])
+    setJudgement(null)
   }
 
-  const start = async () => {
-    if (running) return
-    // ★ ユーザー操作起点でアンロック（iOS 対策）
-    tts.unlock()
-
+  const runPresentation = async (seq: Cell[]) => {
     const ac = new AbortController()
     abortRef.current = ac
-    setRunning(true)
-    setDone(0)
-    setCurrent(null)
-
-    let prev: Cell | null = null
-    let n = 0
     try {
-      while (!ac.signal.aborted && (count === 0 || n < count)) {
-        const cell = randomCellInRange(range, Math.random, prev)
-        prev = cell
-        setCurrent(cell)
-        await tts.speakCell(cell, yomiStyle, { rate })
-        if (ac.signal.aborted) break
-        n += 1
-        setDone(n)
-        if (count !== 0 && n >= count) break
-        await delay(intervalSec * 1000, ac.signal)
+      for (let i = 0; i < seq.length; i++) {
+        if (ac.signal.aborted) return
+        const cell = seq[i]
+        setPresentIndex(i)
+        const speak = channels.audio
+          ? tts.speakCell(cell, yomiStyle, { rate })
+          : Promise.resolve()
+        await Promise.all([speak, delay(intervalSec * 1000, ac.signal)])
+        if (ac.signal.aborted) return
+        // 次のマスとの区切り（同じマスが続いて見える誤認を防ぐ）
+        setPresentIndex(-1)
+        await delay(220, ac.signal)
       }
+      // 提示終了 → 回答フェーズ
+      setPhase('recall')
+      setTaps([])
+      recallStartRef.current = now()
     } catch {
-      // AbortError（停止）は正常系
-    } finally {
-      tts.cancel()
-      setRunning(false)
-      abortRef.current = null
+      // Abort は正常系
     }
   }
 
-  const total = count === 0 ? '∞' : String(count)
+  const start = async () => {
+    tts.unlock() // iOS 対策（ユーザー操作起点）
+    const seq = generateSequence(n, range)
+    setSequence(seq)
+    setJudgement(null)
+    setPresentIndex(-1)
+    setPhase('present')
+    if (!recorderRef.current) {
+      recorderRef.current = new SessionRecorder('sequence')
+    }
+    await runPresentation(seq)
+  }
 
-  return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6">
-      <BackBar title="ただ読み上げ" onBack={onBack} />
+  const finishRecall = (finalTaps: Cell[]) => {
+    const ms = now() - recallStartRef.current
+    const result = judgeSequence(sequence, finalTaps)
+    setJudgement(result)
+    setPhase('result')
+    recorderRef.current?.record({
+      prompt: sequence.map(cellLabel).join(' '),
+      answer: finalTaps.map(cellLabel).join(' '),
+      correct: result.correct,
+      ms,
+    })
+  }
 
-      {!supported && (
-        <p className="rounded-md border border-line-soft bg-ink-900/60 p-3 text-xs text-sumi-500">
-          この端末/ブラウザは音声読み上げに対応していません。スマホのブラウザでお試しください。
+  const onRecallTap = (cell: Cell) => {
+    if (phase !== 'recall') return
+    setTaps((prev) => {
+      if (prev.length >= sequence.length) return prev
+      const next = [...prev, cell]
+      if (next.length === sequence.length) finishRecall(next)
+      return next
+    })
+  }
+
+  const tapOrderContent = (cell: Cell) => {
+    const idx = taps.findIndex(
+      (t) => t.file === cell.file && t.rank === cell.rank,
+    )
+    return idx >= 0 ? idx + 1 : null
+  }
+
+  // ---- 画面 ----
+  if (phase === 'config') {
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6">
+        <BackBar title="系列記憶" onBack={onBack} />
+        <p className="text-sm text-sumi-300">
+          座標を <span className="tnum text-sumi-100">{n}</span> 個
+          順に覚えて、示された順にタップします。
         </p>
-      )}
 
-      {/* 現在の読み上げ表示（見なくても成立するが、見れば確認できる） */}
-      <div className="flex flex-col items-center gap-3">
-        <div
-          className="tnum text-5xl font-semibold"
-          style={{ color: current ? 'var(--color-glow-soft)' : 'var(--color-sumi-500)' }}
-          aria-live="polite"
-        >
-          {current ? cellLabel(current) : '—'}
-        </div>
-        <div className="tnum text-sm text-sumi-500">
-          {done} / {total}
-        </div>
-        <div className="w-full max-w-[280px]">
-          <ShogiBoard orientation={boardOrientation} highlight={current} />
-        </div>
-      </div>
+        {!supported && channels.audio && (
+          <p className="rounded-md border border-line-soft bg-ink-900/60 p-3 text-xs text-sumi-500">
+            この端末は音声非対応です。音声オフでも盤面・符号で出題できます。
+          </p>
+        )}
 
-      {running ? (
-        <button
-          type="button"
-          onClick={stop}
-          className="rounded-lg border border-glow/70 bg-ink-800 px-6 py-4 text-lg font-medium text-sumi-100"
-        >
-          停止
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={start}
-          disabled={!supported}
-          className="rounded-lg border border-line bg-ink-850 px-6 py-4 text-lg font-medium text-sumi-100 transition-colors hover:border-glow/60 disabled:opacity-50"
-          style={{ boxShadow: '0 0 24px -10px var(--color-glow)' }}
-        >
-          開始
-        </button>
-      )}
+        <div className="flex flex-col gap-2">
+          <span className="text-sm text-sumi-300">出題数 N</span>
+          <div className="flex gap-2">
+            {N_PRESETS.map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setN(v)}
+                aria-pressed={n === v}
+                className={[
+                  'tnum flex-1 rounded-md border px-2 py-2 text-sm transition-colors',
+                  n === v
+                    ? 'border-glow/70 text-sumi-100'
+                    : 'border-line text-sumi-500 hover:text-sumi-300',
+                ].join(' ')}
+                style={
+                  n === v ? { backgroundColor: 'var(--color-ink-800)' } : undefined
+                }
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {/* パラメータ（実行中は編集不可） */}
-      <fieldset
-        disabled={running}
-        className="flex flex-col gap-5 disabled:opacity-50"
-      >
+        <div className="flex flex-col gap-2">
+          <span className="text-sm text-sumi-300">提示手段（1つ以上）</span>
+          <div className="flex gap-2">
+            {ALL_CHANNELS.map((c) => {
+              const on = channels[c]
+              const disabled = c === 'audio' && !supported
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => setChannels((prev) => toggleChannel(prev, c))}
+                  aria-pressed={on}
+                  className={[
+                    'flex-1 rounded-md border px-3 py-2 text-sm transition-colors disabled:opacity-40',
+                    on
+                      ? 'border-glow/70 text-sumi-100'
+                      : 'border-line text-sumi-500 hover:text-sumi-300',
+                  ].join(' ')}
+                  style={
+                    on ? { backgroundColor: 'var(--color-ink-800)' } : undefined
+                  }
+                >
+                  {CHANNEL_LABEL[c]}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-sumi-300">発話間隔</span>
+            <span className="text-sm text-sumi-300">提示間隔</span>
             <span className="tnum text-sm text-sumi-100">
               {intervalSec.toFixed(1)}秒
             </span>
           </div>
           <input
             type="range"
-            min={0.3}
+            min={0.5}
             max={4}
             step={0.1}
             value={intervalSec}
             onChange={(e) => setIntervalSec(Number(e.target.value))}
             className="w-full accent-[var(--color-glow)]"
-            aria-label="発話間隔（秒）"
+            aria-label="提示間隔（秒）"
           />
         </div>
 
@@ -264,39 +337,152 @@ export function ListenScreen({ onBack }: { onBack: () => void }) {
           )}
         </div>
 
-        <div className="flex flex-col gap-2">
-          <span className="text-sm text-sumi-300">連続数</span>
-          <div className="flex gap-2">
-            {COUNT_PRESETS.map((p) => (
-              <button
-                key={p.value}
-                type="button"
-                onClick={() => setCount(p.value)}
-                aria-pressed={count === p.value}
-                className={[
-                  'tnum flex-1 rounded-md border px-2 py-2 text-sm transition-colors',
-                  count === p.value
-                    ? 'border-glow/70 text-sumi-100'
-                    : 'border-line text-sumi-500 hover:text-sumi-300',
-                ].join(' ')}
-                style={
-                  count === p.value
-                    ? { backgroundColor: 'var(--color-ink-800)' }
-                    : undefined
-                }
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={start}
+          className="rounded-lg border border-line bg-ink-850 px-6 py-4 text-lg font-medium text-sumi-100 transition-colors hover:border-glow/60"
+          style={{ boxShadow: '0 0 24px -10px var(--color-glow)' }}
+        >
+          開始
+        </button>
+      </div>
+    )
+  }
 
-        <p className="tnum text-xs text-sumi-500">
-          話速 {rate.toFixed(1)}x・読み{yomiStyle === 'modern' ? 'よん/なな/きゅう' : 'し/しち/く'}（設定で変更）
+  if (phase === 'present') {
+    const current = presentIndex >= 0 ? sequence[presentIndex] : null
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6">
+        <BackBar title="系列記憶 — 記憶" onBack={backToConfig} />
+        <p className="tnum text-center text-sm text-sumi-500">
+          {presentIndex >= 0 ? presentIndex + 1 : sequence.length} /{' '}
+          {sequence.length}
         </p>
-      </fieldset>
+
+        {channels.symbol && (
+          <div
+            className="tnum text-center text-6xl font-semibold"
+            style={{
+              color: current
+                ? 'var(--color-glow-soft)'
+                : 'var(--color-sumi-500)',
+            }}
+            aria-live="polite"
+          >
+            {current ? cellLabel(current) : '—'}
+          </div>
+        )}
+
+        {channels.board ? (
+          <div className="mx-auto w-full max-w-[300px]">
+            <ShogiBoard orientation={boardOrientation} highlight={current} />
+          </div>
+        ) : (
+          <p className="text-center text-sm text-sumi-500">
+            {channels.audio ? '音声で出題中…' : '出題中…'} 覚えてください
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={backToConfig}
+          className="mx-auto rounded-md border border-line px-4 py-2 text-sm text-sumi-300"
+        >
+          中止
+        </button>
+      </div>
+    )
+  }
+
+  if (phase === 'recall') {
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 py-6">
+        <BackBar title="系列記憶 — 再現" onBack={backToConfig} />
+        <p className="text-center text-sm text-sumi-300">
+          示された順にタップ{' '}
+          <span className="tnum text-sumi-100">
+            {taps.length} / {sequence.length}
+          </span>
+        </p>
+        <div className="mx-auto w-full max-w-[340px]">
+          <ShogiBoard
+            orientation={boardOrientation}
+            onCellTap={onRecallTap}
+            cellContent={tapOrderContent}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setTaps([])}
+          disabled={taps.length === 0}
+          className="mx-auto rounded-md border border-line px-4 py-2 text-sm text-sumi-300 disabled:opacity-40"
+        >
+          タップをやり直す
+        </button>
+      </div>
+    )
+  }
+
+  // result
+  return (
+    <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 py-6">
+      <BackBar title="系列記憶 — 結果" onBack={onBack} />
+      <div
+        className="rounded-lg border p-6 text-center"
+        style={{
+          borderColor: judgement?.correct
+            ? 'var(--color-glow)'
+            : 'var(--color-line)',
+        }}
+      >
+        <p
+          className="text-2xl font-semibold"
+          style={{
+            color: judgement?.correct
+              ? 'var(--color-glow-soft)'
+              : 'var(--color-sumi-100)',
+          }}
+        >
+          {judgement?.correct ? '正解' : '不正解'}
+        </p>
+        <p className="tnum mt-1 text-sm text-sumi-500">
+          位置一致 {judgement?.matched} / {judgement?.total}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-md border border-line-soft p-4 text-sm">
+        <div className="flex justify-between gap-3">
+          <span className="text-sumi-500">出題</span>
+          <span className="tnum text-right text-sumi-100">
+            {sequence.map(cellLabel).join(' ')}
+          </span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-sumi-500">回答</span>
+          <span className="tnum text-right text-sumi-300">
+            {taps.map(cellLabel).join(' ') || '—'}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={backToConfig}
+          className="flex-1 rounded-md border border-line px-4 py-3 text-sm text-sumi-300"
+        >
+          設定へ
+        </button>
+        <button
+          type="button"
+          onClick={start}
+          className="flex-1 rounded-md border border-glow/70 bg-ink-800 px-4 py-3 text-sm text-sumi-100"
+        >
+          もう一度
+        </button>
+      </div>
     </div>
   )
 }
 
-export default ListenScreen
+export default SequenceScreen

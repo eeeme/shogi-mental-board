@@ -6,7 +6,7 @@
 export type FeatureId =
   | 'tapCell'
   | 'reverse'
-  | 'listen'
+  | 'sequence'
   | 'recall'
   | 'tsume'
   | 'stats'
@@ -30,7 +30,7 @@ export const FEATURES: FeatureMeta[] = [
     id: 'tapCell',
     no: 1,
     title: '読み上げ→マス押下',
-    summary: '座標をN個順に聞いて記憶 → 鳴った順にタップ（系列記憶）',
+    summary: '座標を1つ提示 → 該当マスを即タップ（逐次1問1答）',
     scope: 'MVP',
     status: 'coming-soon',
   },
@@ -43,10 +43,10 @@ export const FEATURES: FeatureMeta[] = [
     status: 'coming-soon',
   },
   {
-    id: 'listen',
+    id: 'sequence',
     no: 3,
-    title: 'ただ読み上げ',
-    summary: '座標を連続で読み上げるだけ。画面を見ず「ながら」でOK',
+    title: '系列記憶',
+    summary: '座標をN個順に提示 → 記憶 → 示された順にタップして答え合わせ',
     scope: 'MVP',
     status: 'available',
   },

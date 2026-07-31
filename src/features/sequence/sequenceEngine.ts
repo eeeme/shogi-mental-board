@@ -1,84 +1,77 @@
 /**
- * 機能③「ただ読み上げ」の出題ロジック（純粋関数）。
- * 出題範囲（筋・段の一部に限定可）からランダムにマスを選ぶ。
+ * 機能③「系列記憶（順番タップ→答え合わせ）」のロジック（純粋関数）。
+ * 座標を N 個順に提示 → 記憶 → 示された順にタップ → 順序・位置の一致で判定。
  */
-import { BOARD_SIZE, type Cell } from '../../lib/coords'
+import { cellsEqual, type Cell } from '../../lib/coords'
+import { randomCellInRange, type CellRange } from '../../lib/range'
 
-/** 出題範囲。筋(file)・段(rank) それぞれの下限〜上限（1〜9、両端含む）。 */
-export type CellRange = {
-  fileMin: number
-  fileMax: number
-  rankMin: number
-  rankMax: number
-}
+export type { CellRange } from '../../lib/range'
+export { FULL_RANGE, normalizeRange, rangeSize } from '../../lib/range'
 
-export const FULL_RANGE: CellRange = {
-  fileMin: 1,
-  fileMax: BOARD_SIZE,
-  rankMin: 1,
-  rankMax: BOARD_SIZE,
-}
+/** 提示手段（チャンネル）。最低 1 つは on でなければ問題が伝わらない。 */
+export type Channel = 'board' | 'symbol' | 'audio'
+export type Channels = Record<Channel, boolean>
 
-function clamp(n: number): number {
-  return Math.min(BOARD_SIZE, Math.max(1, Math.round(n)))
-}
+export const ALL_CHANNELS: Channel[] = ['board', 'symbol', 'audio']
 
-/** 範囲を正規化（1〜9にクランプし、min<=max を保証）。 */
-export function normalizeRange(range: CellRange): CellRange {
-  const f1 = clamp(range.fileMin)
-  const f2 = clamp(range.fileMax)
-  const r1 = clamp(range.rankMin)
-  const r2 = clamp(range.rankMax)
-  return {
-    fileMin: Math.min(f1, f2),
-    fileMax: Math.max(f1, f2),
-    rankMin: Math.min(r1, r2),
-    rankMax: Math.max(r1, r2),
-  }
-}
-
-/** マスが範囲内か。 */
-export function isInRange(cell: Cell, range: CellRange): boolean {
-  const n = normalizeRange(range)
-  return (
-    cell.file >= n.fileMin &&
-    cell.file <= n.fileMax &&
-    cell.rank >= n.rankMin &&
-    cell.rank <= n.rankMax
-  )
-}
-
-/** 範囲内のマス数。 */
-export function rangeSize(range: CellRange): number {
-  const n = normalizeRange(range)
-  return (n.fileMax - n.fileMin + 1) * (n.rankMax - n.rankMin + 1)
-}
-
-function randInt(min: number, max: number, rng: () => number): number {
-  return min + Math.floor(rng() * (max - min + 1))
+/** 少なくとも 1 つの提示手段が on か。 */
+export function atLeastOneOn(channels: Channels): boolean {
+  return ALL_CHANNELS.some((c) => channels[c])
 }
 
 /**
- * 範囲内からランダムに 1 マスを選ぶ。
- * @param avoid 直前のマス。指定があり、範囲に 2 マス以上あれば連続で同じマスを避ける。
+ * チャンネルの on/off をトグルする。ただし「最後の 1 つ」は off にできない
+ * （必ず 1 つは on を維持する）。制約に反する場合は元の状態を返す。
  */
-export function randomCellInRange(
+export function toggleChannel(channels: Channels, channel: Channel): Channels {
+  const next: Channels = { ...channels, [channel]: !channels[channel] }
+  if (!atLeastOneOn(next)) return channels
+  return next
+}
+
+/**
+ * 出題範囲から N 個の系列を生成する。連続で同じマスは避ける
+ * （範囲が 1 マスしかない場合を除く）。
+ */
+export function generateSequence(
+  n: number,
   range: CellRange,
   rng: () => number = Math.random,
-  avoid?: Cell | null,
-): Cell {
-  const n = normalizeRange(range)
-  const pick = (): Cell => ({
-    file: randInt(n.fileMin, n.fileMax, rng),
-    rank: randInt(n.rankMin, n.rankMax, rng),
-  })
-  let cell = pick()
-  if (avoid && rangeSize(n) > 1) {
-    let guard = 0
-    while (cell.file === avoid.file && cell.rank === avoid.rank && guard < 20) {
-      cell = pick()
-      guard++
-    }
+): Cell[] {
+  const count = Math.max(1, Math.floor(n))
+  const cells: Cell[] = []
+  let prev: Cell | null = null
+  for (let i = 0; i < count; i++) {
+    const cell = randomCellInRange(range, rng, prev)
+    cells.push(cell)
+    prev = cell
   }
-  return cell
+  return cells
+}
+
+export type SequenceJudgement = {
+  /** 順序・位置がすべて一致したか（＝正解）。 */
+  correct: boolean
+  /** 位置が一致した手数（同じ index で同じマス）。部分一致の記録用。 */
+  matched: number
+  /** 出題数。 */
+  total: number
+}
+
+/**
+ * 系列の答え合わせ。**順序も一致で正解**。
+ * 位置のみ一致・部分一致は matched に残すが correct にはしない。
+ */
+export function judgeSequence(
+  expected: Cell[],
+  actual: Cell[],
+): SequenceJudgement {
+  const total = expected.length
+  let matched = 0
+  for (let i = 0; i < total; i++) {
+    const a = actual[i]
+    if (a && cellsEqual(expected[i], a)) matched += 1
+  }
+  const correct = total > 0 && actual.length === total && matched === total
+  return { correct, matched, total }
 }
