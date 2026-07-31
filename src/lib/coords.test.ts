@@ -15,8 +15,8 @@ import {
 } from './coords'
 
 // テスト側で独立に持つ期待値テーブル（実装と二重化して取り違えを検知する）
-const MODERN = ['いち', 'に', 'さん', 'よん', 'ご', 'ろく', 'なな', 'はち', 'きゅう']
-const CLASSIC = ['いち', 'に', 'さん', 'し', 'ご', 'ろく', 'しち', 'はち', 'く']
+const MODERN = ['いち', 'にぃ', 'さん', 'よん', 'ごぅ', 'ろく', 'なな', 'はち', 'きゅう']
+const CLASSIC = ['いち', 'にぃ', 'さん', 'し', 'ごぅ', 'ろく', 'しち', 'はち', 'く']
 const KANJI = ['一', '二', '三', '四', '五', '六', '七', '八', '九']
 
 describe('numYomi / fileYomi / rankYomi', () => {
@@ -51,6 +51,15 @@ describe('numYomi / fileYomi / rankYomi', () => {
     expect(numYomi(7)).toBe('なな')
     expect(fileYomi(4)).toBe('よん')
     expect(rankYomi(9)).toBe('きゅう')
+  })
+
+  it('2と5は伸ばして読む（1モーラ対策・筋段両方・流派非依存）', () => {
+    expect(numYomi(2, 'modern')).toBe('にぃ')
+    expect(numYomi(2, 'classic')).toBe('にぃ')
+    expect(numYomi(5, 'modern')).toBe('ごぅ')
+    expect(numYomi(5, 'classic')).toBe('ごぅ')
+    // マス読みでも反映（2五 → にぃごぅ）
+    expect(cellYomi({ file: 2, rank: 5 })).toBe('にぃごぅ')
   })
 
   it('範囲外・非整数は例外', () => {
