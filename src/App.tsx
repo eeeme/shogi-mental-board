@@ -5,10 +5,12 @@ import { Home } from './pages/Home'
 import { Stats } from './pages/Stats'
 import { Settings } from './pages/Settings'
 import { SequenceScreen } from './features/sequence/SequenceScreen'
+import { TapCellScreen } from './features/tapCell/TapCellScreen'
 import { getFeature, type FeatureId } from './features/registry'
 
 /** 開いている機能画面（ホームのカードから遷移）。 */
 function FeatureScreen({ id, onBack }: { id: FeatureId; onBack: () => void }) {
+  if (id === 'tapCell') return <TapCellScreen onBack={onBack} />
   if (id === 'sequence') return <SequenceScreen onBack={onBack} />
 
   // 未接続の機能はプレースホルダ（後続フェーズで各画面を接続）。
