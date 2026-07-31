@@ -1,8 +1,8 @@
 /**
- * 機能③「ただ読み上げ」の出題ロジック（純粋関数）。
- * 出題範囲（筋・段の一部に限定可）からランダムにマスを選ぶ。
+ * 出題範囲ユーティリティ（純粋関数）。
+ * 複数の機能（①逐次タップ / ③系列記憶）で共有する。
  */
-import { BOARD_SIZE, type Cell } from '../../lib/coords'
+import { BOARD_SIZE, type Cell } from './coords'
 
 /** 出題範囲。筋(file)・段(rank) それぞれの下限〜上限（1〜9、両端含む）。 */
 export type CellRange = {
