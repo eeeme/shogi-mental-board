@@ -40,7 +40,7 @@ export const FEATURES: FeatureMeta[] = [
     title: 'マスが光る→記号回答',
     summary: '光ったマスの座標を答える（逆変換）',
     scope: 'MVP',
-    status: 'coming-soon',
+    status: 'available',
   },
   {
     id: 'sequence',
