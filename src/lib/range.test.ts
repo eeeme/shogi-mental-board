@@ -5,7 +5,7 @@ import {
   normalizeRange,
   randomCellInRange,
   rangeSize,
-} from './listenEngine'
+} from './range'
 
 describe('normalizeRange', () => {
   it('1〜9 にクランプし min<=max を保証する', () => {
@@ -50,14 +50,11 @@ describe('randomCellInRange', () => {
   it('rng の両端で範囲の下限・上限に到達する', () => {
     const range = { fileMin: 2, fileMax: 8, rankMin: 3, rankMax: 7 }
     expect(randomCellInRange(range, () => 0)).toEqual({ file: 2, rank: 3 })
-    // 0.999… は各次元の最大に丸められる
     expect(randomCellInRange(range, () => 0.999999)).toEqual({ file: 8, rank: 7 })
   })
 
   it('avoid 指定時は直前と同じマスを避ける（2マス以上ある場合）', () => {
     const range = { fileMin: 1, fileMax: 1, rankMin: 1, rankMax: 2 }
-    // このレンジは 1一 と 1二 の2マス。
-    // rng を [file,rank] の順で消費: 1回目 pick→{1,1}(=avoid) → 再抽選 → {1,2}
     const seq = [0, 0, 0, 0.9]
     let i = 0
     const rng = () => seq[Math.min(i++, seq.length - 1)]
