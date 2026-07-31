@@ -6,10 +6,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { BackBar } from '../../components/BackBar'
 import { ShogiBoard } from '../../components/ShogiBoard'
+import { BoardModeSettings } from '../../components/BoardModeSettings'
 import { cellLabel, type Cell } from '../../lib/coords'
 import { isTTSSupported, tts } from '../../lib/tts'
 import { now } from '../../lib/time'
 import { useSettings } from '../../store/useSettings'
+import { useModeUi } from '../../store/useModeSettings'
 import { SessionRecorder } from '../../lib/sessionRecorder'
 import { FULL_RANGE, normalizeRange, rangeSize } from '../../lib/range'
 import type { CellRange } from '../../lib/range'
@@ -71,7 +73,8 @@ function RangeRow({
 }
 
 export function TapCellScreen({ onBack }: { onBack: () => void }) {
-  const { rate, yomiStyle, boardOrientation } = useSettings()
+  const { rate, yomiStyle } = useSettings()
+  const { orientation, showLabels } = useModeUi('tap')
   const supported = isTTSSupported()
 
   // パラメータ
@@ -310,6 +313,8 @@ export function TapCellScreen({ onBack }: { onBack: () => void }) {
           )}
         </div>
 
+        <BoardModeSettings mode="tap" />
+
         <button
           type="button"
           onClick={start}
@@ -323,8 +328,10 @@ export function TapCellScreen({ onBack }: { onBack: () => void }) {
   }
 
   if (phase === 'playing') {
-    // フィードバック中は出題マスを光らせて正解位置を示す
+    // フィードバック中は正解マスを灯り色、誤タップならその位置をエラー色で同時表示
     const highlight = feedback ? feedback.expected : null
+    const errorHighlight =
+      feedback && !feedback.correct ? feedback.tapped : null
     return (
       <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 py-6">
         <BackBar title="読み上げ→マス押下" onBack={stop} />
@@ -356,11 +363,13 @@ export function TapCellScreen({ onBack }: { onBack: () => void }) {
           {channels.symbol && current ? cellLabel(current) : '？'}
         </div>
 
-        <div className="mx-auto w-full max-w-[340px]">
+        <div className="w-full">
           <ShogiBoard
-            orientation={boardOrientation}
+            orientation={orientation}
+            showLabels={showLabels}
             onCellTap={onTap}
             highlight={highlight}
+            errorHighlight={errorHighlight}
             disabled={!!feedback}
           />
         </div>

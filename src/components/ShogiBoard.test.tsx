@@ -17,11 +17,27 @@ describe('ShogiBoard', () => {
     expect(onCellTap).toHaveBeenCalledWith({ file: 7, rank: 6 })
   })
 
-  it('ハイライトされたマスは aria-pressed=true', () => {
+  it('ハイライトされたマスは aria-pressed=true / data-role=correct', () => {
     render(<ShogiBoard highlight={{ file: 5, rank: 5 }} />)
-    expect(screen.getByRole('gridcell', { name: '5五' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
+    const cell = screen.getByRole('gridcell', { name: '5五' })
+    expect(cell).toHaveAttribute('aria-pressed', 'true')
+    expect(cell).toHaveAttribute('data-role', 'correct')
+  })
+
+  it('誤タップマスは data-role=error、正解マスは correct を同時表示', () => {
+    render(
+      <ShogiBoard
+        highlight={{ file: 7, rank: 6 }}
+        errorHighlight={{ file: 3, rank: 4 }}
+      />,
+    )
+    expect(screen.getByRole('gridcell', { name: '7六' })).toHaveAttribute(
+      'data-role',
+      'correct',
+    )
+    expect(screen.getByRole('gridcell', { name: '3四' })).toHaveAttribute(
+      'data-role',
+      'error',
     )
   })
 })

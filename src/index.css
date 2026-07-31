@@ -7,26 +7,30 @@
   - 数字は等幅（座標・反応時間・正答率）
 */
 @theme {
-  /* 墨（背景〜面） */
-  --color-ink-950: #09090b;
-  --color-ink-900: #0e0e10;
-  --color-ink-850: #141417;
-  --color-ink-800: #1a1a1e;
-  --color-ink-700: #26262c;
-  --color-ink-600: #34343c;
+  /* 墨（背景〜面）— 実機フィードバックのパレットに整合（背景 #14110F 基準） */
+  --color-ink-950: #0e0c0b;
+  --color-ink-900: #14110f;
+  --color-ink-850: #1a1613;
+  --color-ink-800: #201b17;
+  --color-ink-700: #2a2622;
+  --color-ink-600: #35302a;
 
   /* 盤の罫線・和紙の縁 */
-  --color-line: #3a3a42;
-  --color-line-soft: #2a2a30;
+  --color-line: #2a2622;
+  --color-line-soft: #221e1a;
 
-  /* 文字 */
-  --color-sumi-100: #ecebe8;
-  --color-sumi-300: #b8b6b0;
-  --color-sumi-500: #85837c;
+  /* 文字（生成り白〜数値グレージュ） */
+  --color-sumi-100: #e8e2d5;
+  --color-sumi-300: #bdb5a6;
+  --color-sumi-500: #9a9186;
 
   /* 光る一マス（行灯の灯り） */
-  --color-glow: #e0a94b;
-  --color-glow-soft: #f0cb86;
+  --color-glow: #e9c46a;
+  --color-glow-soft: #f1d68c;
+
+  /* 誤答（和の低彩度な赤・茜/弁柄寄り） */
+  --color-error: #b5433a;
+  --color-error-soft: #cf6b62;
 
   /* 盤の木地（ほのかに） */
   --color-kaya: #2a2620;
@@ -63,12 +67,47 @@ body {
   letter-spacing: 0.02em;
 }
 
-/* 光る一マスの signature グロー */
+/* 光る一マスの signature グロー（正解色） */
 .cell-glow {
   background-color: color-mix(in srgb, var(--color-glow) 22%, transparent);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--color-glow) 55%, transparent),
     0 0 18px 2px color-mix(in srgb, var(--color-glow) 35%, transparent);
+}
+
+/* 誤タップしたマス（エラー色）。正解マス(cell-glow)と同時に見せる */
+.cell-error {
+  background-color: color-mix(in srgb, var(--color-error) 30%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-error) 70%, transparent),
+    0 0 14px 1px color-mix(in srgb, var(--color-error) 30%, transparent);
+  animation: cell-shake 160ms ease-in-out 0s 1;
+}
+
+/* 非色キュー: 短いシェイク（色覚特性への配慮＋「間違えた感」） */
+@keyframes cell-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+/* 盤の星（ほし）: 罫線と同系の墨色で低コントラスト・小さめ */
+.board-hoshi {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: var(--color-sumi-500);
+  opacity: 0.35;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 /* モーション低減の尊重 */

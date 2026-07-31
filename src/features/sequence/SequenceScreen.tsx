@@ -6,10 +6,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { BackBar } from '../../components/BackBar'
 import { ShogiBoard } from '../../components/ShogiBoard'
+import { BoardModeSettings } from '../../components/BoardModeSettings'
 import { cellLabel, type Cell } from '../../lib/coords'
 import { delay, isTTSSupported, tts } from '../../lib/tts'
 import { now } from '../../lib/time'
 import { useSettings } from '../../store/useSettings'
+import { useModeUi } from '../../store/useModeSettings'
 import { SessionRecorder } from '../../lib/sessionRecorder'
 import { FULL_RANGE, normalizeRange, rangeSize } from '../../lib/range'
 import type { CellRange } from '../../lib/range'
@@ -77,7 +79,8 @@ function RangeRow({
 }
 
 export function SequenceScreen({ onBack }: { onBack: () => void }) {
-  const { rate, yomiStyle, boardOrientation } = useSettings()
+  const { rate, yomiStyle } = useSettings()
+  const { orientation, showLabels } = useModeUi('sequence')
   const supported = isTTSSupported()
 
   // パラメータ
@@ -337,6 +340,8 @@ export function SequenceScreen({ onBack }: { onBack: () => void }) {
           )}
         </div>
 
+        <BoardModeSettings mode="sequence" />
+
         <button
           type="button"
           onClick={start}
@@ -374,8 +379,12 @@ export function SequenceScreen({ onBack }: { onBack: () => void }) {
         )}
 
         {channels.board ? (
-          <div className="mx-auto w-full max-w-[300px]">
-            <ShogiBoard orientation={boardOrientation} highlight={current} />
+          <div className="mx-auto w-full max-w-[340px]">
+            <ShogiBoard
+              orientation={orientation}
+              showLabels={showLabels}
+              highlight={current}
+            />
           </div>
         ) : (
           <p className="text-center text-sm text-sumi-500">
@@ -404,9 +413,10 @@ export function SequenceScreen({ onBack }: { onBack: () => void }) {
             {taps.length} / {sequence.length}
           </span>
         </p>
-        <div className="mx-auto w-full max-w-[340px]">
+        <div className="w-full">
           <ShogiBoard
-            orientation={boardOrientation}
+            orientation={orientation}
+            showLabels={showLabels}
             onCellTap={onRecallTap}
             cellContent={tapOrderContent}
           />

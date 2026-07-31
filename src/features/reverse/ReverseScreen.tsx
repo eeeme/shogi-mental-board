@@ -5,9 +5,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { BackBar } from '../../components/BackBar'
 import { ShogiBoard } from '../../components/ShogiBoard'
+import { BoardModeSettings } from '../../components/BoardModeSettings'
 import { cellLabel, type Cell } from '../../lib/coords'
 import { now } from '../../lib/time'
-import { useSettings } from '../../store/useSettings'
+import { useModeUi } from '../../store/useModeSettings'
 import { SessionRecorder } from '../../lib/sessionRecorder'
 import { FULL_RANGE, normalizeRange, rangeSize } from '../../lib/range'
 import type { CellRange } from '../../lib/range'
@@ -108,7 +109,7 @@ function PickerRow({
 }
 
 export function ReverseScreen({ onBack }: { onBack: () => void }) {
-  const { boardOrientation } = useSettings()
+  const { orientation, showLabels } = useModeUi('reverse')
 
   // パラメータ
   const [count, setCount] = useState(10)
@@ -295,6 +296,8 @@ export function ReverseScreen({ onBack }: { onBack: () => void }) {
           )}
         </div>
 
+        <BoardModeSettings mode="reverse" />
+
         <button
           type="button"
           onClick={start}
@@ -332,8 +335,12 @@ export function ReverseScreen({ onBack }: { onBack: () => void }) {
           )}
         </div>
 
-        <div className="mx-auto w-full max-w-[300px]">
-          <ShogiBoard orientation={boardOrientation} highlight={target} showRulers />
+        <div className="mx-auto w-full max-w-[360px]">
+          <ShogiBoard
+            orientation={orientation}
+            showLabels={showLabels}
+            highlight={target}
+          />
         </div>
 
         <PickerRow
