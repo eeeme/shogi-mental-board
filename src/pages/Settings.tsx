@@ -1,5 +1,6 @@
 /**
- * 設定画面。話速 / 読みの流派 / 盤の向き（docs/design.md 3章の設定）。
+ * 全体設定画面。話速 / 読みの流派。
+ * ※ 盤の向き・番号ラベルは各モードの設定へ移管（ここには置かない）。
  * TTS の動作確認ボタンも置く（ユーザー操作起点なので iOS でも発話可能）。
  */
 import { useSettings } from '../store/useSettings'
@@ -47,15 +48,13 @@ function Segmented<T extends string>({
 }
 
 export function Settings() {
-  const { rate, yomiStyle, boardOrientation, setRate, setYomiStyle, setBoardOrientation } =
-    useSettings()
-
+  const { rate, yomiStyle, setRate, setYomiStyle } = useSettings()
   const supported = isTTSSupported()
 
   const testSpeak = () => {
     // ユーザー操作起点なので、ここで unlock してから発話する（iOS 対策）
     tts.unlock()
-    tts.speak(cellYomi({ file: 7, rank: 6 }, yomiStyle), { rate })
+    tts.speak(cellYomi({ file: 2, rank: 5 }, yomiStyle), { rate })
   }
 
   return (
@@ -96,15 +95,9 @@ export function Settings() {
         ]}
       />
 
-      <Segmented
-        label="盤の向き"
-        value={boardOrientation}
-        onChange={setBoardOrientation}
-        options={[
-          { value: 'sente', label: '先手視点' },
-          { value: 'gote', label: '後手視点' },
-        ]}
-      />
+      <p className="text-xs text-sumi-500">
+        盤の向き（先手/後手視点）と番号ラベルの表示は、各モードの設定で切り替えます。
+      </p>
 
       <div className="flex flex-col gap-2">
         <button
@@ -113,7 +106,7 @@ export function Settings() {
           disabled={!supported}
           className="rounded-md border border-line bg-ink-850 px-4 py-3 text-sm text-sumi-100 transition-colors hover:border-glow/60 disabled:opacity-50"
         >
-          音声テスト（「ななろく」を読み上げ）
+          音声テスト（「にぃごぅ」を読み上げ）
         </button>
         {!supported && (
           <p className="text-xs text-sumi-500">

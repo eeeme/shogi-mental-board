@@ -1,6 +1,8 @@
 /**
- * 設定ストア（Zustand + localStorage 永続化）。
- * 保存対象: 話速 / 読み流派 / 盤の向き（docs/design.md 6章 Settings）。
+ * 全体設定ストア（Zustand + localStorage 永続化）。
+ * 保存対象: 話速 / 読み流派。
+ * ※ 盤の向き・番号ラベル表示は「モード別設定」（useModeSettings）に移管した。
+ *   二重管理を避けるため、設定の持ち主はモード側に一本化する。
  */
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -14,20 +16,16 @@ export type Settings = {
   rate: number
   /** 読みの流派（既定 modern）。 */
   yomiStyle: YomiStyle
-  /** 盤の向き（既定 sente）。 */
-  boardOrientation: BoardOrientation
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   rate: 1.0,
   yomiStyle: 'modern',
-  boardOrientation: 'sente',
 }
 
 type SettingsStore = Settings & {
   setRate: (rate: number) => void
   setYomiStyle: (style: YomiStyle) => void
-  setBoardOrientation: (orientation: BoardOrientation) => void
   reset: () => void
 }
 
@@ -37,12 +35,11 @@ export const useSettings = create<SettingsStore>()(
       ...DEFAULT_SETTINGS,
       setRate: (rate) => set({ rate: Math.min(2, Math.max(0.5, rate)) }),
       setYomiStyle: (yomiStyle) => set({ yomiStyle }),
-      setBoardOrientation: (boardOrientation) => set({ boardOrientation }),
       reset: () => set({ ...DEFAULT_SETTINGS }),
     }),
     {
       name: 'shogi-mental-board:settings',
-      version: 1,
+      version: 2,
     },
   ),
 )
