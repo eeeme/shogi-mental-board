@@ -108,7 +108,13 @@ function PickerRow({
   )
 }
 
-export function ReverseScreen({ onBack }: { onBack: () => void }) {
+export function ReverseScreen({
+  onBack,
+  onInfo,
+}: {
+  onBack: () => void
+  onInfo?: () => void
+}) {
   const { orientation, showLabels } = useModeUi('reverse')
 
   // パラメータ
@@ -212,7 +218,7 @@ export function ReverseScreen({ onBack }: { onBack: () => void }) {
   if (phase === 'config') {
     return (
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6">
-        <BackBar title="マスが光る→記号回答" onBack={onBack} />
+        <BackBar title="マスが光る→記号回答" onBack={onBack} onInfo={onInfo} />
         <p className="text-sm text-sumi-300">
           光ったマスの座標（筋・段）を答えます。
         </p>

@@ -72,7 +72,13 @@ function RangeRow({
   )
 }
 
-export function TapCellScreen({ onBack }: { onBack: () => void }) {
+export function TapCellScreen({
+  onBack,
+  onInfo,
+}: {
+  onBack: () => void
+  onInfo?: () => void
+}) {
   const { rate, yomiStyle } = useSettings()
   const { orientation, showLabels } = useModeUi('tap')
   const supported = isTTSSupported()
@@ -181,7 +187,7 @@ export function TapCellScreen({ onBack }: { onBack: () => void }) {
   if (phase === 'config') {
     return (
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6">
-        <BackBar title="読み上げ→マス押下" onBack={onBack} />
+        <BackBar title="読み上げ→マス押下" onBack={onBack} onInfo={onInfo} />
         <p className="text-sm text-sumi-300">
           出された座標のマスを、その場でタップします（1問1答）。
         </p>

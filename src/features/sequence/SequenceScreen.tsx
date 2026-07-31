@@ -78,7 +78,13 @@ function RangeRow({
   )
 }
 
-export function SequenceScreen({ onBack }: { onBack: () => void }) {
+export function SequenceScreen({
+  onBack,
+  onInfo,
+}: {
+  onBack: () => void
+  onInfo?: () => void
+}) {
   const { rate, yomiStyle } = useSettings()
   const { orientation, showLabels } = useModeUi('sequence')
   const supported = isTTSSupported()
@@ -202,7 +208,7 @@ export function SequenceScreen({ onBack }: { onBack: () => void }) {
   if (phase === 'config') {
     return (
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6">
-        <BackBar title="系列記憶" onBack={onBack} />
+        <BackBar title="系列記憶" onBack={onBack} onInfo={onInfo} />
         <p className="text-sm text-sumi-300">
           座標を <span className="tnum text-sumi-100">{n}</span> 個
           順に覚えて、示された順にタップします。

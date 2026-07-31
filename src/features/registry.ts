@@ -20,6 +20,8 @@ export type FeatureMeta = {
   no: number
   title: string
   summary: string
+  /** 説明モーダル用の少し詳しい説明（任意）。 */
+  howto?: string
   /** レベル感/フェーズ表記（MVP / 後続）。資格名は使わない。 */
   scope: 'MVP' | '後続'
   status: FeatureStatus
@@ -31,6 +33,8 @@ export const FEATURES: FeatureMeta[] = [
     no: 1,
     title: '読み上げ→マス押下',
     summary: '座標を1つ提示 → 該当マスを即タップ（逐次1問1答）',
+    howto:
+      '出された座標（符号 and/or 音声）のマスをその場でタップします。1問ずつ即採点。符号か音声の一方はオフにできます。',
     scope: 'MVP',
     status: 'available',
   },
@@ -39,6 +43,8 @@ export const FEATURES: FeatureMeta[] = [
     no: 2,
     title: 'マスが光る→記号回答',
     summary: '光ったマスの座標を答える（逆変換）',
+    howto:
+      '盤の1マスが光ります。その座標を筋（1〜9）・段（一〜九）のピッカーで答えます。位置→符号の変換を鍛えます。',
     scope: 'MVP',
     status: 'available',
   },
@@ -47,6 +53,8 @@ export const FEATURES: FeatureMeta[] = [
     no: 3,
     title: '系列記憶',
     summary: '座標をN個順に提示 → 記憶 → 示された順にタップして答え合わせ',
+    howto:
+      '座標をN個、順番に提示します。覚えたら、示された順にN個タップして答え合わせ。提示手段（盤面/符号/音声）は1つ以上オンにできます。',
     scope: 'MVP',
     status: 'available',
   },
