@@ -3,8 +3,8 @@ import { cellToSpeech, delay, isTTSSupported, tts } from './tts'
 
 describe('cellToSpeech', () => {
   it('マスを読み仮名へ変換する', () => {
-    expect(cellToSpeech({ file: 7, rank: 6 }, 'modern')).toBe('ななろく')
-    expect(cellToSpeech({ file: 7, rank: 6 }, 'classic')).toBe('しちろく')
+    expect(cellToSpeech({ file: 7, rank: 6 }, 'modern')).toBe('ナナロク')
+    expect(cellToSpeech({ file: 7, rank: 6 }, 'classic')).toBe('シチロク')
   })
 })
 
@@ -15,7 +15,7 @@ describe('TTS ラッパー（非対応環境での安全性）', () => {
   })
 
   it('非対応環境でも speak は解決し、例外を投げない', async () => {
-    await expect(tts.speak('ななろく')).resolves.toBeUndefined()
+    await expect(tts.speak('ナナロク')).resolves.toBeUndefined()
     await expect(tts.speakCell({ file: 1, rank: 1 })).resolves.toBeUndefined()
     expect(() => tts.cancel()).not.toThrow()
     expect(() => tts.unlock()).not.toThrow()

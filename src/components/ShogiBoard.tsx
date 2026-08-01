@@ -66,14 +66,19 @@ function Koma({ piece }: { piece: BoardPiece }) {
   )
 }
 
+// ルーラーは盤の内側グリッドと同じトラック構成（padding 1px + gap 1px + 9等分）で組み、
+// 各ラベルの中心を対応する列/行の中心に一致させる（別レイヤーの絶対配置にしない）。
 function FileRuler({ files }: { files: number[] }) {
   return (
     <div
       aria-hidden
-      className="tnum grid grid-cols-9 px-[1px] text-center text-[11px] text-sumi-500"
+      className="tnum grid grid-cols-9 text-[11px] text-sumi-500"
+      style={{ gap: '1px', padding: '0 1px' }}
     >
-      {files.map((f) => (
-        <div key={f}>{f}</div>
+      {files.map((f, i) => (
+        <div key={i} className="flex items-center justify-center">
+          {f}
+        </div>
       ))}
     </div>
   )
@@ -83,10 +88,13 @@ function RankRuler({ ranks }: { ranks: string[] }) {
   return (
     <div
       aria-hidden
-      className="grid grid-rows-9 items-center py-[1px] text-center text-[11px] text-sumi-500"
+      className="grid grid-rows-9 text-[11px] text-sumi-500"
+      style={{ gap: '1px', padding: '1px 0' }}
     >
       {ranks.map((r, i) => (
-        <div key={i}>{r}</div>
+        <div key={i} className="flex items-center justify-center">
+          {r}
+        </div>
       ))}
     </div>
   )
@@ -187,7 +195,8 @@ export function ShogiBoard({
         gridTemplateColumns: `${ranksLeft ? 'auto ' : ''}1fr${ranksRight ? ' auto' : ''}`,
         gridTemplateRows: `${filesTop ? 'auto ' : ''}1fr${filesBottom ? ' auto' : ''}`,
         gap: '3px',
-        alignItems: 'center',
+        // ラベルをマスと揃えるため、ルーラーを盤の高さ/幅に stretch させる
+        alignItems: 'stretch',
       }}
     >
       {filesTop && (

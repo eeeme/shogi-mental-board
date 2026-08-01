@@ -31,7 +31,7 @@ export function isTTSSupported(): boolean {
   )
 }
 
-/** マスを発話用の読み仮名へ変換する（例: 7六 → "ななろく"）。 */
+/** マスを発話用の読み仮名（カタカナ）へ変換する（例: 7六 → "ナナロク"）。 */
 export function cellToSpeech(cell: Cell, style: YomiStyle = 'modern'): string {
   return cellYomi(cell, style)
 }
