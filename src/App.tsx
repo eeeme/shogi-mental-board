@@ -3,8 +3,6 @@ import { BottomNav, type Tab } from './components/BottomNav'
 import { BackBar } from './components/BackBar'
 import { ModeIntroModal } from './components/ModeIntroModal'
 import { Home } from './pages/Home'
-import { Stats } from './pages/Stats'
-import { Contact } from './pages/Contact'
 import { Settings } from './pages/Settings'
 import { SequenceScreen } from './features/sequence/SequenceScreen'
 import { TapCellScreen } from './features/tapCell/TapCellScreen'
@@ -71,10 +69,6 @@ function App() {
     switch (tab) {
       case 'home':
         return <Home onOpen={openCard} />
-      case 'stats':
-        return <Stats />
-      case 'contact':
-        return <Contact />
       case 'settings':
         return <Settings />
     }
