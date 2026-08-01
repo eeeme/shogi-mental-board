@@ -40,8 +40,12 @@ export type ShogiBoardProps = {
   cellContent?: (cell: Cell) => ReactNode
   /** タップを無効化する。 */
   disabled?: boolean
-  /** 座標番号ラベル（筋・段）を視点に応じた辺に表示する。 */
+  /** 座標番号ラベル（筋・段）を視点に応じた辺に表示する（筋・段まとめて）。 */
   showLabels?: boolean
+  /** 筋ラベルのみの表示可否（未指定なら showLabels に従う）。 */
+  showFileLabels?: boolean
+  /** 段ラベルのみの表示可否（未指定なら showLabels に従う）。 */
+  showRankLabels?: boolean
 }
 
 function toHighlightSet(highlight: ShogiBoardProps['highlight']): Set<number> {
@@ -109,19 +113,25 @@ export function ShogiBoard({
   cellContent,
   disabled = false,
   showLabels = false,
+  showFileLabels,
+  showRankLabels,
 }: ShogiBoardProps) {
   const highlightSet = toHighlightSet(highlight)
   const errorIdx = errorHighlight ? cellToIndex(errorHighlight) : -1
   // index 昇順 = 先手視点の描画順。後手視点は 180 度回転（逆順）。
   const cells = orientation === 'sente' ? allCells() : allCells().reverse()
 
+  // 筋・段ラベルは個別指定があればそれを、なければ showLabels に従う。
+  const filesShown = showFileLabels ?? showLabels
+  const ranksShown = showRankLabels ?? showLabels
+
   const sides = labelSides(orientation)
   const files = fileHeader(orientation)
   const ranks = rankHeader(orientation)
-  const filesTop = showLabels && sides.files === 'top'
-  const filesBottom = showLabels && sides.files === 'bottom'
-  const ranksLeft = showLabels && sides.ranks === 'left'
-  const ranksRight = showLabels && sides.ranks === 'right'
+  const filesTop = filesShown && sides.files === 'top'
+  const filesBottom = filesShown && sides.files === 'bottom'
+  const ranksLeft = ranksShown && sides.ranks === 'left'
+  const ranksRight = ranksShown && sides.ranks === 'right'
 
   const board = (
     <div className="relative">
@@ -184,7 +194,7 @@ export function ShogiBoard({
     </div>
   )
 
-  if (!showLabels) return <div className="w-full">{board}</div>
+  if (!filesShown && !ranksShown) return <div className="w-full">{board}</div>
 
   // ラベル付き: 視点に応じて 筋(上 or 下) / 段(右 or 左) に配置。
   return (

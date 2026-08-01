@@ -5,12 +5,27 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { BackBar } from '../../components/BackBar'
+import { ShogiBoard } from '../../components/ShogiBoard'
 import { cellLabel, type Cell } from '../../lib/coords'
 import { delay, isTTSSupported, tts } from '../../lib/tts'
 import { useSettings } from '../../store/useSettings'
 import { FULL_RANGE, normalizeRange, randomCellInRange, rangeSize } from '../../lib/range'
 import type { CellRange } from '../../lib/range'
 import { runListenLoop } from './listenEngine'
+import {
+  DEFAULT_TOGGLES,
+  toggleDisplay,
+  type DisplayToggles,
+  type ToggleKey,
+} from './displayToggles'
+
+const TOGGLE_ITEMS: { key: ToggleKey; label: string }[] = [
+  { key: 'board', label: '盤' },
+  { key: 'fileLabels', label: '筋ラベル' },
+  { key: 'rankLabels', label: '段ラベル' },
+  { key: 'symbol', label: '符号' },
+  { key: 'glow', label: '光るマス' },
+]
 
 type Phase = 'config' | 'reading'
 
@@ -77,10 +92,15 @@ export function ListenScreen({
     rankMax: 3,
   })
 
+  const [toggles, setToggles] = useState<DisplayToggles>(DEFAULT_TOGGLES)
+
   const [phase, setPhase] = useState<Phase>('config')
   const [current, setCurrent] = useState<Cell | null>(null)
   const [count, setCount] = useState(0)
   const abortRef = useRef<AbortController | null>(null)
+
+  const setToggle = (key: ToggleKey, value: boolean) =>
+    setToggles((s) => toggleDisplay(s, key, value))
 
   const range = rangeMode === 'all' ? FULL_RANGE : normalizeRange(partialRange)
 
@@ -125,23 +145,38 @@ export function ListenScreen({
 
   if (phase === 'reading') {
     return (
-      <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-10">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-8">
         <BackBar title="ただ読み上げ" onBack={stop} onInfo={onInfo} />
         <p className="text-center text-sm text-sumi-500">
           停止するまで読み上げ続けます（ながら聴き）
         </p>
-        <div
-          className="tnum text-center text-6xl font-semibold"
-          style={{
-            color: current ? 'var(--color-glow-soft)' : 'var(--color-sumi-500)',
-          }}
-          aria-live="polite"
-        >
-          {current ? cellLabel(current) : '…'}
-        </div>
-        <p className="tnum text-center text-sm text-sumi-500">
-          {count} 回
-        </p>
+
+        {toggles.symbol && (
+          <div
+            className="tnum text-center text-6xl font-semibold"
+            style={{
+              color: current
+                ? 'var(--color-glow-soft)'
+                : 'var(--color-sumi-500)',
+            }}
+            aria-live="polite"
+          >
+            {current ? cellLabel(current) : '…'}
+          </div>
+        )}
+
+        {toggles.board && (
+          <div className="w-full">
+            <ShogiBoard
+              orientation="sente"
+              showFileLabels={toggles.fileLabels}
+              showRankLabels={toggles.rankLabels}
+              highlight={toggles.glow ? current : null}
+            />
+          </div>
+        )}
+
+        <p className="tnum text-center text-sm text-sumi-500">{count} 回</p>
         <button
           type="button"
           onClick={stop}
@@ -235,6 +270,36 @@ export function ListenScreen({
             />
           </div>
         )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className="text-sm text-sumi-300">
+          表示（音声は常時オン。全部オフ＝音だけでもOK）
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {TOGGLE_ITEMS.map(({ key, label }) => {
+            const on = toggles[key]
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setToggle(key, !on)}
+                aria-pressed={on}
+                className={[
+                  'rounded-md border px-3 py-2 text-sm transition-colors',
+                  on
+                    ? 'border-glow/70 text-sumi-100'
+                    : 'border-line text-sumi-500 hover:text-sumi-300',
+                ].join(' ')}
+                style={
+                  on ? { backgroundColor: 'var(--color-ink-800)' } : undefined
+                }
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <button
