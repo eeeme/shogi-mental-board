@@ -1,21 +1,24 @@
 /**
- * モード説明モーダル。短い説明文＋実物 ShogiBoard の自動再生デモ。
- * 「次回から表示しない」を localStorage に永続化。ⓘボタンからも再表示できる。
+ * モード説明ポップアップ（ホーム画面上に表示）。短い説明＋実物 ShogiBoard の自動再生デモ。
+ * ボタン: 「はじめる」→ モードへ遷移 / 「×」→ 閉じてホームのまま。
+ * ※ 将来この位置が課金導線になるため「次回から表示しない」は付けず毎回表示。
+ *   モーダル下部に課金CTAを差し込めるスロットを確保しておく（今は空）。
  */
 import { ModeDemo } from './ModeDemo'
 import { getFeature, type FeatureId } from '../features/registry'
-import { useModeIntro } from '../store/useModeIntro'
 
 export function ModeIntroModal({
   id,
+  onStart,
   onClose,
 }: {
   id: FeatureId
+  /** 「はじめる」= モードへ遷移。 */
+  onStart: () => void
+  /** 「×」= 閉じてホームのまま。 */
   onClose: () => void
 }) {
   const meta = getFeature(id)
-  const dismissed = useModeIntro((s) => s.dismissed[id] === true)
-  const setDismissed = useModeIntro((s) => s.setDismissed)
 
   return (
     <div
@@ -30,7 +33,12 @@ export function ModeIntroModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-semibold text-sumi-100">{meta.title}</h2>
+          <h2 className="text-lg font-semibold text-sumi-100">
+            <span className="tnum mr-2 text-sm text-sumi-500">
+              {String(meta.no).padStart(2, '0')}
+            </span>
+            {meta.title}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -49,19 +57,12 @@ export function ModeIntroModal({
           <ModeDemo id={id} />
         </div>
 
-        <label className="mt-4 flex items-center gap-2 text-sm text-sumi-300">
-          <input
-            type="checkbox"
-            checked={dismissed}
-            onChange={(e) => setDismissed(id, e.target.checked)}
-            className="h-4 w-4 accent-[var(--color-glow)]"
-          />
-          次回から表示しない
-        </label>
+        {/* 将来の課金CTAスロット（一部モードの買い切りアンロック導線）。今は空。 */}
+        <div data-slot="paywall-cta" />
 
         <button
           type="button"
-          onClick={onClose}
+          onClick={onStart}
           className="mt-4 w-full rounded-lg border border-glow/70 bg-ink-800 px-6 py-3 text-base font-medium text-sumi-100"
         >
           はじめる

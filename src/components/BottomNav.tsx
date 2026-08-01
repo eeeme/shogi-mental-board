@@ -2,11 +2,12 @@
  * ボトムナビ（ホーム / 統計 / 設定）。docs/design.md 3章のシンプルな3タブ構成。
  * 日本語ラベルのみ。
  */
-export type Tab = 'home' | 'stats' | 'settings'
+export type Tab = 'home' | 'stats' | 'contact' | 'settings'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'home', label: 'ホーム' },
   { id: 'stats', label: '統計' },
+  { id: 'contact', label: '問い合わせ' },
   { id: 'settings', label: '設定' },
 ]
 
