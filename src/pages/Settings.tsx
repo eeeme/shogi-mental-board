@@ -3,9 +3,11 @@
  * ※ 盤の向き・番号ラベルは各モードの設定へ移管（ここには置かない）。
  * TTS の動作確認ボタンも置く（ユーザー操作起点なので iOS でも発話可能）。
  */
+import { useState } from 'react'
 import { useSettings } from '../store/useSettings'
 import { tts, isTTSSupported } from '../lib/tts'
 import { cellYomi } from '../lib/coords'
+import { restorePurchases, PLAY_STORE_URL } from '../lib/purchase'
 
 function Segmented<T extends string>({
   label,
@@ -50,6 +52,20 @@ function Segmented<T extends string>({
 export function Settings() {
   const { rate, yomiStyle, setRate, setYomiStyle } = useSettings()
   const supported = isTTSSupported()
+  const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
+
+  const onRestore = async () => {
+    const outcome = await restorePurchases()
+    if (outcome === 'purchased') {
+      setRestoreMsg('購入を復元しました。')
+    } else {
+      setRestoreMsg(
+        PLAY_STORE_URL
+          ? '復元できる購入が見つかりませんでした。'
+          : 'この環境では購入の復元はできません（Google Play 版で有効）。',
+      )
+    }
+  }
 
   const testSpeak = () => {
     // ユーザー操作起点なので、ここで unlock してから発話する（iOS 対策）
@@ -114,6 +130,28 @@ export function Settings() {
           </p>
         )}
       </div>
+
+      <section className="flex flex-col gap-2 border-t border-line-soft pt-5">
+        <h2 className="text-sm text-sumi-300">購入</h2>
+        <button
+          type="button"
+          onClick={onRestore}
+          className="rounded-md border border-line bg-ink-850 px-4 py-3 text-sm text-sumi-100 transition-colors hover:border-glow/60"
+        >
+          購入を復元
+        </button>
+        {restoreMsg && (
+          <p className="text-xs text-sumi-500">{restoreMsg}</p>
+        )}
+        <a
+          href={`${import.meta.env.BASE_URL}privacy.html`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 text-xs text-sumi-500 underline"
+        >
+          プライバシーポリシー
+        </a>
+      </section>
     </div>
   )
 }
