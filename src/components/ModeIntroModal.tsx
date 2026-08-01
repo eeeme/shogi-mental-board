@@ -6,6 +6,8 @@
  */
 import { ModeDemo } from './ModeDemo'
 import { getFeature, type FeatureId } from '../features/registry'
+import { useUsageGate } from '../lib/entitlement'
+import { FREE_DAILY_LIMIT } from '../lib/usage'
 
 export function ModeIntroModal({
   id,
@@ -19,6 +21,9 @@ export function ModeIntroModal({
   onClose: () => void
 }) {
   const meta = getFeature(id)
+  const gate = useUsageGate(id)
+  // 無料枠を使い切った対象モードで、Pro でなければ課金CTAを見せる（今はブロックしない）。
+  const showPaywallCta = !gate.isPro && gate.limited
 
   return (
     <div
@@ -57,8 +62,24 @@ export function ModeIntroModal({
           <ModeDemo id={id} />
         </div>
 
-        {/* 将来の課金CTAスロット（一部モードの買い切りアンロック導線）。今は空。 */}
-        <div data-slot="paywall-cta" />
+        {/* 課金CTAスロット（一部モードの買い切りアンロック導線）。
+            今は判定を通すだけで、実際のブロックはしない（「はじめる」も有効）。 */}
+        <div data-slot="paywall-cta">
+          {showPaywallCta && (
+            <div className="mt-4 rounded-lg border border-line-soft bg-ink-950/50 p-3">
+              <p className="text-xs text-sumi-300">
+                今日の無料回数（{FREE_DAILY_LIMIT}回）を使い切りました。
+              </p>
+              <button
+                type="button"
+                disabled
+                className="mt-2 w-full rounded-md border border-line px-4 py-2 text-sm text-sumi-500"
+              >
+                アンロック（準備中）
+              </button>
+            </div>
+          )}
+        </div>
 
         <button
           type="button"

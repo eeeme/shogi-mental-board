@@ -9,6 +9,7 @@ import { BoardModeSettings } from '../../components/BoardModeSettings'
 import { cellLabel, type Cell } from '../../lib/coords'
 import { now } from '../../lib/time'
 import { useModeUi } from '../../store/useModeSettings'
+import { useUsageGate } from '../../lib/entitlement'
 import { SessionRecorder } from '../../lib/sessionRecorder'
 import { FULL_RANGE, normalizeRange, rangeSize } from '../../lib/range'
 import type { CellRange } from '../../lib/range'
@@ -116,6 +117,7 @@ export function ReverseScreen({
   onInfo?: () => void
 }) {
   const { orientation, showLabels } = useModeUi('reverse')
+  const gate = useUsageGate('reverse')
 
   // パラメータ
   const [count, setCount] = useState(10)
@@ -160,6 +162,7 @@ export function ReverseScreen({
   }
 
   const start = () => {
+    gate.record() // 無料利用回数を記録（現状はブロックしない）
     recorderRef.current = new SessionRecorder('reverse')
     setPhase('playing')
     setQIndex(0)

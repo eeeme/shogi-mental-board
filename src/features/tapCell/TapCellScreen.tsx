@@ -12,6 +12,7 @@ import { isTTSSupported, tts } from '../../lib/tts'
 import { now } from '../../lib/time'
 import { useSettings } from '../../store/useSettings'
 import { useModeUi } from '../../store/useModeSettings'
+import { useUsageGate } from '../../lib/entitlement'
 import { SessionRecorder } from '../../lib/sessionRecorder'
 import { FULL_RANGE, normalizeRange, rangeSize } from '../../lib/range'
 import type { CellRange } from '../../lib/range'
@@ -81,6 +82,7 @@ export function TapCellScreen({
 }) {
   const { rate, yomiStyle } = useSettings()
   const { orientation, showLabels } = useModeUi('tap')
+  const gate = useUsageGate('tapCell')
   const supported = isTTSSupported()
 
   // パラメータ
@@ -129,6 +131,7 @@ export function TapCellScreen({
 
   const start = () => {
     tts.unlock() // iOS 対策
+    gate.record() // 無料利用回数を記録（現状はブロックしない）
     recorderRef.current = new SessionRecorder('tap')
     setPhase('playing')
     setQIndex(0)
