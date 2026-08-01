@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">将棋 脳内盤トレーニング</string>
+    <string name="title_activity_main">将棋 脳内盤トレーニング</string>
+    <string name="package_name">com.eeeme.shogimentalboard</string>
+    <string name="custom_url_scheme">com.eeeme.shogimentalboard</string>
+</resources>
