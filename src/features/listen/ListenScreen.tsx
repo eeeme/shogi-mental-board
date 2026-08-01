@@ -8,7 +8,9 @@ import { BackBar } from '../../components/BackBar'
 import { ShogiBoard } from '../../components/ShogiBoard'
 import { cellLabel, type Cell } from '../../lib/coords'
 import { delay, isTTSSupported, tts } from '../../lib/tts'
+import { now } from '../../lib/time'
 import { useSettings } from '../../store/useSettings'
+import { saveSession } from '../../lib/storage'
 import { FULL_RANGE, normalizeRange, randomCellInRange, rangeSize } from '../../lib/range'
 import type { CellRange } from '../../lib/range'
 import { runListenLoop } from './listenEngine'
@@ -98,22 +100,43 @@ export function ListenScreen({
   const [current, setCurrent] = useState<Cell | null>(null)
   const [count, setCount] = useState(0)
   const abortRef = useRef<AbortController | null>(null)
+  const startedAtRef = useRef(0)
+  const savedRef = useRef(true)
 
   const setToggle = (key: ToggleKey, value: boolean) =>
     setToggles((s) => toggleDisplay(s, key, value))
 
   const range = rangeMode === 'all' ? FULL_RANGE : normalizeRange(partialRange)
 
+  // 実施したセッションを記録（受動なので試行は持たず、実施時間のみ）。
+  const persistSession = () => {
+    if (savedRef.current) return
+    savedRef.current = true
+    const id =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    void saveSession({
+      id,
+      mode: 'listen',
+      startedAt: startedAtRef.current,
+      finishedAt: now(),
+      trials: [],
+    })
+  }
+
   useEffect(() => {
     return () => {
       abortRef.current?.abort()
       tts.cancel()
+      persistSession()
     }
   }, [])
 
   const stop = () => {
     abortRef.current?.abort()
     tts.cancel()
+    persistSession()
     setPhase('config')
     setCurrent(null)
   }
@@ -122,6 +145,8 @@ export function ListenScreen({
     tts.unlock() // iOS 対策（ユーザー操作起点）
     const ac = new AbortController()
     abortRef.current = ac
+    startedAtRef.current = now()
+    savedRef.current = false
     setPhase('reading')
     setCurrent(null)
     setCount(0)

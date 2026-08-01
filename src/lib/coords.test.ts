@@ -3,6 +3,7 @@ import {
   BOARD_SIZE,
   CELL_COUNT,
   allCells,
+  cellFromLabel,
   cellLabel,
   cellToIndex,
   cellYomi,
@@ -124,6 +125,24 @@ describe('cellLabel', () => {
         expect(cellLabel({ file, rank })).toBe(`${file}${KANJI[rank - 1]}`)
       }
     }
+  })
+})
+
+describe('cellFromLabel（ラベル→マス逆変換）', () => {
+  it('全81マスで cellLabel と往復する', () => {
+    for (let file = 1; file <= 9; file++) {
+      for (let rank = 1; rank <= 9; rank++) {
+        const cell = { file, rank }
+        expect(cellFromLabel(cellLabel(cell))).toEqual(cell)
+      }
+    }
+  })
+
+  it('解釈できない文字列は null', () => {
+    expect(cellFromLabel('')).toBeNull()
+    expect(cellFromLabel('76')).toBeNull()
+    expect(cellFromLabel('7X')).toBeNull()
+    expect(cellFromLabel('あ')).toBeNull()
   })
 })
 

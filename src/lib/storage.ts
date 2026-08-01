@@ -5,7 +5,7 @@
  */
 
 /** 各機能のモード（docs/design.md 6章）。 */
-export type Mode = 'tap' | 'reverse' | 'sequence' | 'recall' | 'tsume'
+export type Mode = 'tap' | 'reverse' | 'sequence' | 'listen' | 'recall' | 'tsume'
 
 /** 1 試行の記録。 */
 export type Trial = {
