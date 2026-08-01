@@ -25,33 +25,39 @@ function framesFor(id: FeatureId): Frame[] {
         { cells: [{ cell }], caption: '光ったマスは？' },
         { cells: [{ cell }], caption: `→ ${cellLabel(cell)}` },
       ])
-    case 'sequence':
+    case 'sequence': {
+      // 提示は「盤は光らせず符号だけを1つずつ」→ 消去 →「順にタップ」→「正解」
+      const S1: Cell = { file: 1, rank: 4 } // 1四
+      const S2: Cell = { file: 6, rank: 8 } // 6八
+      const S3: Cell = { file: 3, rank: 2 } // 3二
+      const seq = [S1, S2, S3]
       return [
-        { cells: [{ cell: A, n: 1 }], caption: '順に提示…' },
+        // 提示フェーズ: マスは光らせず、符号を1つずつ盤の下に積む
+        { cells: [], caption: `覚える: ${cellLabel(S1)}` },
+        { cells: [], caption: `覚える: ${cellLabel(S1)}・${cellLabel(S2)}` },
+        {
+          cells: [],
+          caption: `覚える: ${cellLabel(S1)}・${cellLabel(S2)}・${cellLabel(S3)}`,
+        },
+        // 消去
+        { cells: [], caption: '' },
+        // 回答フェーズ: 順番にタップしていく
+        { cells: [{ cell: S1, n: 1 }], caption: '順にタップ' },
         {
           cells: [
-            { cell: A, n: 1 },
-            { cell: B, n: 2 },
+            { cell: S1, n: 1 },
+            { cell: S2, n: 2 },
           ],
-          caption: '順に提示…',
+          caption: '順にタップ',
         },
         {
-          cells: [
-            { cell: A, n: 1 },
-            { cell: B, n: 2 },
-            { cell: C, n: 3 },
-          ],
-          caption: '記憶する',
+          cells: seq.map((cell, i) => ({ cell, n: i + 1 })),
+          caption: '順にタップ',
         },
-        {
-          cells: [
-            { cell: A, n: 1 },
-            { cell: B, n: 2 },
-            { cell: C, n: 3 },
-          ],
-          caption: '同じ順にタップ → 答え合わせ',
-        },
+        // 正解
+        { cells: seq.map((cell, i) => ({ cell, n: i + 1 })), caption: '正解' },
       ]
+    }
     default:
       // ⑧ただ読み上げ 等・受動系は座標を読み上げる雰囲気を見せる
       return [A, B, C].map((cell) => ({

@@ -34,7 +34,7 @@ export function Contact() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm text-sumi-300">支援（お涙頂戴）</h2>
+        <h2 className="text-sm text-sumi-300">開発を応援する</h2>
         {SUPPORT_URL ? (
           <a
             href={SUPPORT_URL}
@@ -42,13 +42,13 @@ export function Contact() {
             rel="noopener noreferrer"
             className="rounded-md border border-line bg-ink-850 px-4 py-3 text-center text-sm text-sumi-100 transition-colors hover:border-glow/60"
           >
-            支援する
+            このアプリを支援する
           </a>
         ) : (
           <div className="rounded-md border border-line-soft bg-ink-900/60 p-4 text-center">
             <p className="text-sm text-sumi-300">準備中</p>
             <p className="mt-1 text-xs text-sumi-500">
-              将来の投げ銭リンク置き場（今はプレースホルダ）。
+              開発を応援いただける導線を将来ここに置きます。
             </p>
           </div>
         )}
