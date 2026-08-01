@@ -80,6 +80,16 @@ export function cellLabel(cell: Cell): string {
   return `${cell.file}${RANK_KANJI[cell.rank - 1]}`
 }
 
+/** 表示ラベル（"7六"）をマスへ逆変換。解釈できなければ null。 */
+export function cellFromLabel(label: string): Cell | null {
+  const m = label.match(/^([1-9])(.)$/)
+  if (!m) return null
+  const file = Number(m[1])
+  const rank = RANK_KANJI.indexOf(m[2] as (typeof RANK_KANJI)[number]) + 1
+  if (rank < 1) return null
+  return { file, rank }
+}
+
 /** マス → 内部インデックス（0〜80、先手視点の描画順）。 */
 export function cellToIndex(cell: Cell): number {
   assertCell(cell)
