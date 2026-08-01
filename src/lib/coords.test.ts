@@ -15,8 +15,8 @@ import {
 } from './coords'
 
 // テスト側で独立に持つ期待値テーブル（実装と二重化して取り違えを検知する）
-const MODERN = ['いち', 'にぃ', 'さん', 'よん', 'ごぅ', 'ろく', 'なな', 'はち', 'きゅう']
-const CLASSIC = ['いち', 'にぃ', 'さん', 'し', 'ごぅ', 'ろく', 'しち', 'はち', 'く']
+const MODERN = ['イチ', 'ニー', 'サン', 'ヨン', 'ゴー', 'ロク', 'ナナ', 'ハチ', 'キュウ']
+const CLASSIC = ['イチ', 'ニー', 'サン', 'シ', 'ゴー', 'ロク', 'シチ', 'ハチ', 'ク']
 const KANJI = ['一', '二', '三', '四', '五', '六', '七', '八', '九']
 
 describe('numYomi / fileYomi / rankYomi', () => {
@@ -48,18 +48,29 @@ describe('numYomi / fileYomi / rankYomi', () => {
   })
 
   it('既定は modern', () => {
-    expect(numYomi(7)).toBe('なな')
-    expect(fileYomi(4)).toBe('よん')
-    expect(rankYomi(9)).toBe('きゅう')
+    expect(numYomi(7)).toBe('ナナ')
+    expect(fileYomi(4)).toBe('ヨン')
+    expect(rankYomi(9)).toBe('キュウ')
+  })
+
+  it('カタカナで返す（ひらがな助詞化バグ回避）', () => {
+    // 8 は必ず「ハチ」（「ワチ」にならない）
+    expect(numYomi(8)).toBe('ハチ')
+    // 8九 → ハチキュウ（「わちきゅう」防止）
+    expect(cellYomi({ file: 8, rank: 9 })).toBe('ハチキュウ')
+    // カタカナのみ（ひらがなを含まない）
+    for (let n = 1; n <= 9; n++) {
+      expect(numYomi(n)).not.toMatch(/[぀-ゟ]/)
+    }
   })
 
   it('2と5は伸ばして読む（1モーラ対策・筋段両方・流派非依存）', () => {
-    expect(numYomi(2, 'modern')).toBe('にぃ')
-    expect(numYomi(2, 'classic')).toBe('にぃ')
-    expect(numYomi(5, 'modern')).toBe('ごぅ')
-    expect(numYomi(5, 'classic')).toBe('ごぅ')
-    // マス読みでも反映（2五 → にぃごぅ）
-    expect(cellYomi({ file: 2, rank: 5 })).toBe('にぃごぅ')
+    expect(numYomi(2, 'modern')).toBe('ニー')
+    expect(numYomi(2, 'classic')).toBe('ニー')
+    expect(numYomi(5, 'modern')).toBe('ゴー')
+    expect(numYomi(5, 'classic')).toBe('ゴー')
+    // マス読みでも反映（2五 → ニーゴー）
+    expect(cellYomi({ file: 2, rank: 5 })).toBe('ニーゴー')
   })
 
   it('範囲外・非整数は例外', () => {
@@ -71,15 +82,15 @@ describe('numYomi / fileYomi / rankYomi', () => {
 })
 
 describe('cellYomi', () => {
-  it('代表例: 7六 → ななろく', () => {
-    expect(cellYomi({ file: 7, rank: 6 }, 'modern')).toBe('ななろく')
+  it('代表例: 7六 → ナナロク', () => {
+    expect(cellYomi({ file: 7, rank: 6 }, 'modern')).toBe('ナナロク')
   })
 
   it('流派で 4/7/9 を含むマスの読みが変わる', () => {
-    expect(cellYomi({ file: 3, rank: 4 }, 'modern')).toBe('さんよん')
-    expect(cellYomi({ file: 3, rank: 4 }, 'classic')).toBe('さんし')
-    expect(cellYomi({ file: 7, rank: 9 }, 'modern')).toBe('ななきゅう')
-    expect(cellYomi({ file: 7, rank: 9 }, 'classic')).toBe('しちく')
+    expect(cellYomi({ file: 3, rank: 4 }, 'modern')).toBe('サンヨン')
+    expect(cellYomi({ file: 3, rank: 4 }, 'classic')).toBe('サンシ')
+    expect(cellYomi({ file: 7, rank: 9 }, 'modern')).toBe('ナナキュウ')
+    expect(cellYomi({ file: 7, rank: 9 }, 'classic')).toBe('シチク')
   })
 
   it('全 81 マスの読みが「筋読み+段読み」に一致する（modern/classic 両方）', () => {
@@ -96,7 +107,7 @@ describe('cellYomi', () => {
   })
 
   it('既定は modern', () => {
-    expect(cellYomi({ file: 4, rank: 7 })).toBe('よんなな')
+    expect(cellYomi({ file: 4, rank: 7 })).toBe('ヨンナナ')
   })
 })
 

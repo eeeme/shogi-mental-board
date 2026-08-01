@@ -106,7 +106,7 @@ export function Settings() {
           disabled={!supported}
           className="rounded-md border border-line bg-ink-850 px-4 py-3 text-sm text-sumi-100 transition-colors hover:border-glow/60 disabled:opacity-50"
         >
-          音声テスト（「にぃごぅ」を読み上げ）
+          音声テスト（「ニーゴー」を読み上げ）
         </button>
         {!supported && (
           <p className="text-xs text-sumi-500">
