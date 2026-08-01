@@ -4,15 +4,15 @@ import { BackBar } from './components/BackBar'
 import { ModeIntroModal } from './components/ModeIntroModal'
 import { Home } from './pages/Home'
 import { Stats } from './pages/Stats'
+import { Contact } from './pages/Contact'
 import { Settings } from './pages/Settings'
 import { SequenceScreen } from './features/sequence/SequenceScreen'
 import { TapCellScreen } from './features/tapCell/TapCellScreen'
 import { ReverseScreen } from './features/reverse/ReverseScreen'
 import { ListenScreen } from './features/listen/ListenScreen'
 import { getFeature, type FeatureId } from './features/registry'
-import { useModeIntro } from './store/useModeIntro'
 
-/** 開いている機能画面（ホームのカードから遷移）。 */
+/** 開いているモード画面（説明ポップアップの「はじめる」で遷移）。 */
 function FeatureScreen({
   id,
   onBack,
@@ -28,7 +28,7 @@ function FeatureScreen({
     return <SequenceScreen onBack={onBack} onInfo={onInfo} />
   if (id === 'listen') return <ListenScreen onBack={onBack} onInfo={onInfo} />
 
-  // 未接続の機能はプレースホルダ（後続フェーズで各画面を接続）。
+  // 未接続のモードはプレースホルダ（後続フェーズで各画面を接続）。
   const meta = getFeature(id)
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-6">
@@ -44,19 +44,16 @@ function FeatureScreen({
 function App() {
   const [tab, setTab] = useState<Tab>('home')
   const [feature, setFeature] = useState<FeatureId | null>(null)
+  // ホーム上に出す説明ポップアップの対象モード。
   const [introFor, setIntroFor] = useState<FeatureId | null>(null)
-  const isDismissed = useModeIntro((s) => s.isDismissed)
 
-  const openFeature = (id: FeatureId) => {
-    // 統計はボトムナビのタブに集約する。
-    if (id === 'stats') {
-      setFeature(null)
-      setTab('stats')
-      return
-    }
-    setFeature(id)
-    // モード選択時、未読なら説明モーダルを表示してから開始する。
-    if (!isDismissed(id)) setIntroFor(id)
+  // ホームのモードカードをタップ → ホーム上でポップアップ表示（まだ遷移しない）。
+  const openCard = (id: FeatureId) => setIntroFor(id)
+
+  // ポップアップ「はじめる」→ モードへ遷移。
+  const startIntro = () => {
+    if (introFor) setFeature(introFor)
+    setIntroFor(null)
   }
 
   const changeTab = (t: Tab) => {
@@ -73,9 +70,11 @@ function App() {
   const renderTab = () => {
     switch (tab) {
       case 'home':
-        return <Home onOpen={openFeature} />
+        return <Home onOpen={openCard} />
       case 'stats':
         return <Stats />
+      case 'contact':
+        return <Contact />
       case 'settings':
         return <Settings />
     }
@@ -96,7 +95,11 @@ function App() {
       </main>
       {!feature && <BottomNav tab={tab} onChange={changeTab} />}
       {introFor && (
-        <ModeIntroModal id={introFor} onClose={() => setIntroFor(null)} />
+        <ModeIntroModal
+          id={introFor}
+          onStart={startIntro}
+          onClose={() => setIntroFor(null)}
+        />
       )}
     </div>
   )

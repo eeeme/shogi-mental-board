@@ -61,11 +61,21 @@ function framesFor(id: FeatureId): Frame[] {
   }
 }
 
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+}
+
 export function ModeDemo({ id }: { id: FeatureId }) {
   const frames = framesFor(id)
   const [i, setI] = useState(0)
 
   useEffect(() => {
+    // モーション低減設定を尊重: 自動再生せず代表フレームを静止表示。
+    if (prefersReducedMotion()) return
     const timer = setInterval(() => {
       setI((prev) => (prev + 1) % frames.length)
     }, 1100)

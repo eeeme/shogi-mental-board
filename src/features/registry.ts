@@ -1,23 +1,22 @@
 /**
- * ホームに並べる機能カードのメタ情報（7機能）。
- * status='available' の機能だけが開ける。未実装は 'coming-soon'（disabled表示）。
- * MVP範囲は ①②③⑥。④⑤⑦は後続フェーズ（docs/design.md 5章）。
+ * ホームに並べるモードカードのメタ情報（00〜05）。
+ * status='available' のモードだけが開ける。未実装は 'coming-soon'（disabled表示）。
+ * MVP範囲は 00・01・02・03（＋統計タブ）。04・05 は後続フェーズ。
+ * ※ 統計・支援は「モードカード」ではなくタブ（統計/問い合わせ）に集約する。
  */
 export type FeatureId =
+  | 'listen'
   | 'tapCell'
   | 'reverse'
   | 'sequence'
   | 'recall'
   | 'tsume'
-  | 'stats'
-  | 'support'
-  | 'listen'
 
 export type FeatureStatus = 'available' | 'coming-soon'
 
 export type FeatureMeta = {
   id: FeatureId
-  /** 機能番号（1〜7、docs/design.md の並び）。 */
+  /** モード番号（00〜05）。表示名にも使う。 */
   no: number
   title: string
   summary: string
@@ -29,6 +28,16 @@ export type FeatureMeta = {
 }
 
 export const FEATURES: FeatureMeta[] = [
+  {
+    id: 'listen',
+    no: 0,
+    title: 'ただ読み上げ',
+    summary: '座標をひたすら音声で読み上げるだけ（受動・ながら聴き）',
+    howto:
+      '座標を停止するまで読み上げ続けます。タップも答え合わせもありません。通勤中などの「ながら聴き」に。発話間隔と範囲を設定できます。',
+    scope: 'MVP',
+    status: 'available',
+  },
   {
     id: 'tapCell',
     no: 1,
@@ -74,32 +83,6 @@ export const FEATURES: FeatureMeta[] = [
     summary: '配置を音声で聞き、見ずに解く',
     scope: '後続',
     status: 'coming-soon',
-  },
-  {
-    id: 'stats',
-    no: 6,
-    title: '統計',
-    summary: '正答率・反応時間・日別推移・連続日数',
-    scope: 'MVP',
-    status: 'coming-soon',
-  },
-  {
-    id: 'support',
-    no: 7,
-    title: '支援',
-    summary: '将来の投げ銭リンク置き場（今はプレースホルダ）',
-    scope: '後続',
-    status: 'coming-soon',
-  },
-  {
-    id: 'listen',
-    no: 8,
-    title: 'ただ読み上げ',
-    summary: '座標をひたすら音声で読み上げるだけ（受動・ながら聴き）',
-    howto:
-      '座標を停止するまで読み上げ続けます。タップも答え合わせもありません。通勤中などの「ながら聴き」に。発話間隔と範囲を設定できます。',
-    scope: 'MVP',
-    status: 'available',
   },
 ]
 
