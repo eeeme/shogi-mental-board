@@ -3,6 +3,7 @@
  * 未実装は disabled 表示。available な機能だけ onOpen で開く。
  */
 import { FEATURES, type FeatureId, type FeatureMeta } from '../features/registry'
+import { useFeatureLock } from '../lib/entitlement'
 
 type HomeProps = {
   onOpen: (id: FeatureId) => void
@@ -16,6 +17,7 @@ function FeatureCard({
   onOpen: (id: FeatureId) => void
 }) {
   const available = feature.status === 'available'
+  const { locked } = useFeatureLock(feature.id)
   return (
     <button
       type="button"
@@ -36,16 +38,20 @@ function FeatureCard({
         <span className="text-base font-medium text-sumi-100">
           {feature.title}
         </span>
-        {available ? (
+        {!available ? (
+          <span className="ml-auto rounded-full border border-line-soft px-2 py-0.5 text-[10px] text-sumi-500">
+            準備中
+          </span>
+        ) : locked ? (
+          <span className="ml-auto rounded-full border border-line-soft px-2 py-0.5 text-[10px] text-sumi-500">
+            ロック
+          </span>
+        ) : (
           <span
             className="ml-auto h-2 w-2 rounded-full"
             style={{ backgroundColor: 'var(--color-glow)' }}
             aria-hidden
           />
-        ) : (
-          <span className="ml-auto rounded-full border border-line-soft px-2 py-0.5 text-[10px] text-sumi-500">
-            準備中
-          </span>
         )}
       </div>
       <p className="text-sm leading-relaxed text-sumi-300">{feature.summary}</p>

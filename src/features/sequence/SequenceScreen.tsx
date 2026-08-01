@@ -12,7 +12,6 @@ import { delay, isTTSSupported, tts } from '../../lib/tts'
 import { now } from '../../lib/time'
 import { useSettings } from '../../store/useSettings'
 import { useModeUi } from '../../store/useModeSettings'
-import { useUsageGate } from '../../lib/entitlement'
 import { SessionRecorder } from '../../lib/sessionRecorder'
 import { FULL_RANGE, normalizeRange, rangeSize } from '../../lib/range'
 import type { CellRange } from '../../lib/range'
@@ -88,7 +87,6 @@ export function SequenceScreen({
 }) {
   const { rate, yomiStyle } = useSettings()
   const { orientation, showLabels } = useModeUi('sequence')
-  const gate = useUsageGate('sequence')
   const supported = isTTSSupported()
 
   // パラメータ
@@ -165,7 +163,6 @@ export function SequenceScreen({
 
   const start = async () => {
     tts.unlock() // iOS 対策（ユーザー操作起点）
-    gate.record() // 無料利用回数を記録（現状はブロックしない）
     const seq = generateSequence(n, range)
     setSequence(seq)
     setJudgement(null)
