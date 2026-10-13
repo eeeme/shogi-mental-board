@@ -75,7 +75,10 @@ function App() {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div
+      className="flex min-h-full flex-col"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
       <main className="flex-1 pb-20">
         {feature ? (
           <FeatureScreen
