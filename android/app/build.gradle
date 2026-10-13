@@ -7,8 +7,9 @@ android {
         applicationId "com.eeeme.shogimentalboard"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // CI から渡す（無ければ 1 / 1.0.0）。Play に出すたびに versionCode は増やす必要がある
+        versionCode((System.getenv("VERSION_CODE") ?: "1").toInteger())
+        versionName(System.getenv("VERSION_NAME") ?: "1.0.0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +17,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // 署名鍵は CI（GitHub Secrets）から渡す。無ければ未署名のまま（Play にはアップロードできない）
+    def ksFile = System.getenv("KEYSTORE_FILE")
+    signingConfigs {
+        if (ksFile) {
+            release {
+                storeFile file(ksFile)
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS") ?: "upload"
+                keyPassword System.getenv("KEYSTORE_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
+            if (ksFile) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

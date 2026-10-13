@@ -6,12 +6,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { BackBar } from '../../components/BackBar'
 import { ShogiBoard } from '../../components/ShogiBoard'
-import { cellLabel, type Cell } from '../../lib/coords'
+import { allCells, cellLabel, cellYomi, type Cell } from '../../lib/coords'
+import { useEntitlement } from '../../lib/entitlement'
+import { isNative, NativeSpeech } from '../../lib/nativeSpeech'
+import type { PluginListenerHandle } from '@capacitor/core'
 import { delay, isTTSSupported, tts } from '../../lib/tts'
 import { now } from '../../lib/time'
 import { useSettings } from '../../store/useSettings'
 import { saveSession } from '../../lib/storage'
-import { FULL_RANGE, normalizeRange, randomCellInRange, rangeSize } from '../../lib/range'
+import { FULL_RANGE, isInRange, normalizeRange, randomCellInRange, rangeSize } from '../../lib/range'
 import type { CellRange } from '../../lib/range'
 import { runListenLoop } from './listenEngine'
 import {
@@ -84,6 +87,11 @@ export function ListenScreen({
 }) {
   const { rate, yomiStyle } = useSettings()
   const supported = isTTSSupported()
+  const { isPro } = useEntitlement()
+  /** 購入済みのアプリ版は、画面を消しても続くバックグラウンド読み上げを使う。 */
+  const background = isNative && isPro
+  const [notice, setNotice] = useState<string | null>(null)
+  const listenersRef = useRef<PluginListenerHandle[]>([])
 
   const [intervalSec, setIntervalSec] = useState(1.5)
   const [rangeMode, setRangeMode] = useState<'all' | 'partial'>('all')
@@ -125,23 +133,88 @@ export function ListenScreen({
     })
   }
 
+  const detachListeners = () => {
+    const handles = listenersRef.current
+    listenersRef.current = []
+    for (const h of handles) void h.remove()
+  }
+
+  /** バックグラウンド読み上げの進み具合を画面に映す（画面オフ中の分は戻ったときにまとめて届く）。 */
+  const attachListeners = async () => {
+    detachListeners()
+    const onCell = await NativeSpeech.addListener('loopCell', (e) => {
+      setCurrent({ file: e.file, rank: e.rank })
+      setCount(e.count)
+    })
+    const onStopped = await NativeSpeech.addListener('loopStopped', (e) => {
+      detachListeners()
+      persistSession()
+      setPhase('config')
+      setCurrent(null)
+      if (e.reason === 'tts_unavailable') {
+        setNotice('この端末では日本語の読み上げが使えませんでした。端末の設定で「テキスト読み上げ」の日本語音声を入れてください。')
+      }
+    })
+    listenersRef.current = [onCell, onStopped]
+  }
+
   useEffect(() => {
+    // アプリが作り直されても、バックグラウンドで読み上げ中ならその画面に戻す
+    if (background) {
+      void NativeSpeech.isLooping().then(({ looping }) => {
+        if (!looping) return
+        savedRef.current = false
+        startedAtRef.current = now()
+        setPhase('reading')
+        void attachListeners()
+      })
+    }
     return () => {
       abortRef.current?.abort()
       tts.cancel()
+      if (background) void NativeSpeech.stopLoop().catch(() => undefined)
+      detachListeners()
       persistSession()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const stop = () => {
     abortRef.current?.abort()
     tts.cancel()
+    if (background) void NativeSpeech.stopLoop().catch(() => undefined)
+    detachListeners()
     persistSession()
     setPhase('config')
     setCurrent(null)
   }
 
+  const startBackground = async () => {
+    const items = allCells()
+      .filter((c) => isInRange(c, range))
+      .map((c) => ({ text: cellYomi(c, yomiStyle), file: c.file, rank: c.rank }))
+    startedAtRef.current = now()
+    savedRef.current = false
+    setNotice(null)
+    setPhase('reading')
+    setCurrent(null)
+    setCount(0)
+    await attachListeners()
+    try {
+      await NativeSpeech.startLoop({ items, intervalMs: intervalSec * 1000, rate })
+    } catch {
+      detachListeners()
+      savedRef.current = true
+      setPhase('config')
+      setNotice('読み上げを開始できませんでした。もう一度お試しください。')
+    }
+  }
+
   const start = async () => {
+    if (background) {
+      await startBackground()
+      return
+    }
     tts.unlock() // iOS 対策（ユーザー操作起点）
     const ac = new AbortController()
     abortRef.current = ac
@@ -173,7 +246,9 @@ export function ListenScreen({
       <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-8">
         <BackBar title="ただ読み上げ" onBack={stop} onInfo={onInfo} />
         <p className="text-center text-sm text-sumi-500">
-          停止するまで読み上げ続けます（ながら聴き）
+          {background
+            ? '画面を消しても読み上げ続けます。通知の「停止」からも止められます'
+            : '停止するまで読み上げ続けます（ながら聴き）'}
         </p>
 
         {toggles.symbol && (
@@ -223,6 +298,20 @@ export function ListenScreen({
       {!supported && (
         <p className="rounded-md border border-line-soft bg-ink-900/60 p-3 text-xs text-sumi-500">
           この端末/ブラウザは音声読み上げに対応していません。
+        </p>
+      )}
+
+      {isNative && (
+        <p className="rounded-md border border-line-soft bg-ink-900/60 p-3 text-xs leading-relaxed text-sumi-500">
+          {background
+            ? '画面を消しても、他のアプリを使っていても読み上げを続けます。止めるときは「停止」か、通知の「停止」を押してください。'
+            : '画面を消したり他のアプリに切り替えると止まります。購入すると、画面を消しても読み上げを続けられます（設定 → 購入）。'}
+        </p>
+      )}
+
+      {notice && (
+        <p className="rounded-md border border-line-soft bg-ink-900/60 p-3 text-xs text-sumi-300">
+          {notice}
         </p>
       )}
 

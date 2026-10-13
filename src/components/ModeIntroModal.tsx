@@ -3,11 +3,11 @@
  * ボタン: 「はじめる」→ モードへ遷移 / 「×」→ 閉じてホームのまま。
  * ロックされた（有料・未購入）モードは、内容は見せつつ「はじめる」の代わりに購入導線を出す。
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ModeDemo } from './ModeDemo'
 import { getFeature, type FeatureId } from '../features/registry'
 import { useFeatureLock } from '../lib/entitlement'
-import { purchaseUnlock, PLAY_STORE_URL } from '../lib/purchase'
+import { getUnlockPrice, purchaseUnlock } from '../lib/purchase'
 
 const PURCHASE_COPY = [
   '00〜02の機能は、これからもずっと無料で、回数制限もありません。まずはそれだけで十分に練習できると思います。',
@@ -29,18 +29,35 @@ export function ModeIntroModal({
   const meta = getFeature(id)
   const { locked } = useFeatureLock(id)
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [price, setPrice] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!locked) return
+    let alive = true
+    void getUnlockPrice().then((p) => {
+      if (alive) setPrice(p)
+    })
+    return () => {
+      alive = false
+    }
+  }, [locked])
 
   const onPurchase = async () => {
+    if (busy) return
+    setBusy(true)
+    setPurchaseMsg(null)
     const outcome = await purchaseUnlock()
+    setBusy(false)
     if (outcome === 'purchased') {
       onStart()
+    } else if (outcome === 'pending') {
+      setPurchaseMsg('お支払いの完了を待っています。完了すると自動で解除されます。')
+    } else if (outcome === 'unavailable') {
+      // ブラウザ版には購入手段がない。Google Play 版へ誘導する。
+      setPurchaseMsg('購入は Google Play 版のアプリからできます。')
     } else {
-      // Web/PWA には購入手段がない。Google Play 版へ誘導する。
-      setPurchaseMsg(
-        PLAY_STORE_URL
-          ? 'Google Play 版で購入できます。'
-          : 'Google Play 版で解除できます（現在準備中）。',
-      )
+      setPurchaseMsg('購入は完了していません。もう一度お試しください。')
     }
   }
 
@@ -98,9 +115,10 @@ export function ModeIntroModal({
               <button
                 type="button"
                 onClick={onPurchase}
-                className="w-full rounded-lg border border-glow/70 bg-ink-800 px-6 py-3 text-base font-medium text-sumi-100"
+                disabled={busy}
+                className="w-full rounded-lg border border-glow/70 bg-ink-800 px-6 py-3 text-base font-medium text-sumi-100 disabled:opacity-60"
               >
-                購入して解除
+                {busy ? '処理中…' : `購入して解除${price ? `（${price}・買い切り）` : '（買い切り）'}`}
               </button>
               {purchaseMsg && (
                 <p className="text-center text-xs text-sumi-500">{purchaseMsg}</p>

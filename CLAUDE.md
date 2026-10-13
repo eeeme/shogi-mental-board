@@ -29,7 +29,7 @@
 - PWA（インストール可能・オフライン動作）
 - Tailwind CSS
 - 状態管理: Zustand（軽量）
-- 音声: Web Speech API（`speechSynthesis`）
+- 音声: ブラウザ版は Web Speech API（`speechSynthesis`）。**Android アプリ版はネイティブの読み上げ**（アプリ内プラグイン `NativeSpeech`、`src/lib/nativeSpeech.ts` / `android/.../speech/`）
 - 永続化: IndexedDB（セッション記録）/ localStorage（設定）
 - **バックエンドなし。全機能クライアント完結。** サーバー/DB/API を追加しないこと。
 
@@ -55,7 +55,11 @@ src/
     ShogiBoard.tsx      # 9x9盤。タップ検出・マスのハイライト・駒描画
   lib/
     coords.ts           # 筋段 ⇔ index ⇔ 読み仮名 の変換（純粋関数）
-    tts.ts              # 符号読み変換 + speechSynthesis ラッパー
+    tts.ts              # 符号読み変換 + 読み上げラッパー（ブラウザ=speechSynthesis / アプリ=NativeSpeech）
+    nativeSpeech.ts     # Android の読み上げプラグイン（1回読み上げ＋00のバックグラウンド連続読み上げ）
+    billing.ts          # Google Play 課金（@capgo/native-purchases）。呼び出しは必ず1本ずつ順番に
+    entitlement.ts      # 購入済みかの判定（Zustand ストア＋端末キャッシュ）
+    purchase.ts         # 購入・復元・起動時の確認
     storage.ts          # IndexedDB / localStorage アクセス
   features/
     listen/             # 00 ただ読み上げ（受動・答え合わせなし・無料）
@@ -115,7 +119,9 @@ src/
 
 ### iOS Safari の TTS 制約
 - 音声はユーザー操作を起点にしないと再生されない。各機能は「開始ボタンを踏む → 発話開始」の流れを必須にする。
-- **バックグラウンド再生は `speechSynthesis` では不可**（iOSは画面ロックで停止、Androidもサスペンド）。00モードのバックグラウンド再生を実現する場合は、**事前生成した音声ファイル（筋9＋段9の18クリップ、または81マス分）を `<audio>` + MediaSession API で再生する方式**に切り替える。完全な安定性は Capacitor でネイティブ化してから。バックグラウンド再生は**買い切り版の有料機能**として位置づける。
+- **バックグラウンド再生は `speechSynthesis` では不可**（画面ロックで停止）。
+- **Android アプリ版の実装**: 00 の連続読み上げをフォアグラウンドサービス（`ListenService`、通知に「停止」ボタン、mediaPlayback 型、読み上げ中だけ部分 WakeLock）で動かし、Android 標準の TextToSpeech で読む。次のマスはサービス側で選ぶ（画面オフで JS が止まるため）。購入済みのときだけ使う（`isNative && isPro`）。未購入のアプリ版は従来どおり画面表示中のみ。
+- WebView の speechSynthesis は端末によって鳴らないので、**アプリ版は全モードの読み上げを NativeSpeech 経由**にしている。
 
 ## コーディング規約
 
@@ -145,7 +151,8 @@ src/
 
 - **Android(Google Play) 先行でリリースする。iOS は反応を見てから。**
 - **アプリ内課金はストア公開が前提**。PWA(GitHub Pages) のままでは実装できず、Capacitor でネイティブ化してから。
-- 実装時は **RevenueCat** を使う。レシート検証をサーバーレスで賄えるため「バックエンドなし」を維持。
+- 課金ライブラリは **@capgo/native-purchases**（定跡帳と同じ。サーバー不要）。RevenueCat は使わない。
+- 商品 ID: **`unlock_all`**（Play Console のアプリ内アイテム・**300円**・非消費型）。購入はプラグインが自動で承認（acknowledge）。起動時の確認で未承認が見つかればそこで承認する。
 - 商品種別は **非消費型（Non-Consumable）の買い切り。1つのアンロックで 03/04/05＋バックグラウンド再生がすべて開く**。サブスクは採用しない。
 - **無料 / 有料の切り分け（回数制限は一切なし。「1日N回」は廃止）**:
   - **00 ただ読み上げ / 01 マス押下 / 02 逆変換**: 完全無料・無制限
@@ -154,14 +161,15 @@ src/
   - **04 ランダム配置記憶 / 05 詰将棋**: 未実装。購入者に今後追加（追加課金なし）
 - **「購入を復元」ボタンは必須**（Google Play でも必要・将来の iOS でも必須）。設定画面に配置。
 - ロックされたモードもホームのカードから説明ポップアップを開ける（内容は見せる）。ポップアップ下部の課金CTAスロットに購入導線を出す。
-- 抽象化: アンロック判定は `useEntitlement()`（現状ダミー `isPro:false`）と `useFeatureLock(id)` 経由（ベタ書きしない）。購入/復元は `lib/purchase.ts`。課金導入時に RevenueCat へ差し替える。
+- 抽象化: アンロック判定は `useEntitlement()` と `useFeatureLock(id)` 経由（ベタ書きしない）。購入/復元/起動時確認は `lib/purchase.ts`、Google Play との通信は `lib/billing.ts`。
+- 購入状況は Google Play が正。起動時とアプリに戻ったときに確認し、最後の結果を localStorage にキャッシュ（電波が無くても一瞬ロックに戻らないように）。購入が見つからなければ（返金など）ロックに戻す。
 - 文面トーン: 煽らない・不安を作らない・無料部分で十分と正直に言う。同情を誘う表現は使わない。
-- **PWA(GitHub Pages) 版**: 購入手段がないため、03・バックグラウンド再生は**ロック表示のまま**（購入導線は Google Play 版を案内）。Android 版のみ RevenueCat で解除する。
+- **PWA(GitHub Pages) 版**: 購入手段がないため、03・バックグラウンド再生は**ロック表示のまま**（購入導線は Google Play 版を案内）。Android 版のみ Google Play 課金で解除する。
 
 ## やらないこと
 
 - バックエンド/外部APIの追加（自分専用のうちは不要）。
 - localStorage/IndexedDB 以外の永続化。
-- 課金の実処理・広告の実装（ストア公開後のフェーズ。今は `useEntitlement()` の抽象化のみ）。
+- 広告の実装。
 - 統計 / 問い合わせフォーム / 支援の実装（後回し）。
-- ネイティブ専用APIへの依存（PWAで動く範囲に留める）。
+- 読み上げと課金以外のネイティブ専用APIへの依存（それ以外はPWAで動く範囲に留める）。
