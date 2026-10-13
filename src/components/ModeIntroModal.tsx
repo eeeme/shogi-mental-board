@@ -64,6 +64,10 @@ export function ModeIntroModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+      style={{
+        paddingTop: 'calc(1rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
+      }}
       role="dialog"
       aria-modal="true"
       aria-label={`${meta.title} の説明`}
