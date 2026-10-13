@@ -7,7 +7,8 @@ import { useState } from 'react'
 import { useSettings } from '../store/useSettings'
 import { tts, isTTSSupported } from '../lib/tts'
 import { cellYomi } from '../lib/coords'
-import { restorePurchases, PLAY_STORE_URL } from '../lib/purchase'
+import { restorePurchases } from '../lib/purchase'
+import { useEntitlement } from '../lib/entitlement'
 
 function Segmented<T extends string>({
   label,
@@ -53,18 +54,19 @@ export function Settings() {
   const { rate, yomiStyle, setRate, setYomiStyle } = useSettings()
   const supported = isTTSSupported()
   const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
+  const { isPro } = useEntitlement()
 
   const onRestore = async () => {
+    setRestoreMsg('確認しています…')
     const outcome = await restorePurchases()
-    if (outcome === 'purchased') {
-      setRestoreMsg('購入を復元しました。')
-    } else {
-      setRestoreMsg(
-        PLAY_STORE_URL
-          ? '復元できる購入が見つかりませんでした。'
-          : 'この環境では購入の復元はできません（Google Play 版で有効）。',
-      )
+    const messages: Record<typeof outcome, string> = {
+      purchased: '購入を復元しました。',
+      pending: 'お支払いの完了を待っています。完了すると自動で解除されます。',
+      'not-found': 'このアカウントでの購入は見つかりませんでした。',
+      cancelled: 'Google Play に接続できませんでした。電波の良いところでもう一度お試しください。',
+      unavailable: '購入の復元は Google Play 版のアプリでできます。',
     }
+    setRestoreMsg(messages[outcome])
   }
 
   const testSpeak = () => {
@@ -133,6 +135,11 @@ export function Settings() {
 
       <section className="flex flex-col gap-2 border-t border-line-soft pt-5">
         <h2 className="text-sm text-sumi-300">購入</h2>
+        <p className="text-xs text-sumi-500">
+          {isPro
+            ? '購入済みです。03 系列記憶とバックグラウンド再生が使えます。ありがとうございます。'
+            : '購入すると 03 系列記憶とバックグラウンド再生が使えるようになります。'}
+        </p>
         <button
           type="button"
           onClick={onRestore}

@@ -1,5 +1,6 @@
 /**
- * 符号読み変換 + speechSynthesis ラッパー。
+ * 符号読み変換 + 読み上げラッパー。
+ * ブラウザ版は speechSynthesis、Android アプリ版はネイティブの読み上げ（nativeSpeech.ts）を使う。
  *
  * 方針（CLAUDE.md / docs/design.md）:
  * - コンポーネントから直接 window.speechSynthesis を触らない。必ずこのラッパー経由。
@@ -9,6 +10,7 @@
  * - 話速指定と、連続発話のキュー管理（1件ずつ順に再生）を担う。
  */
 import { cellYomi, type Cell, type YomiStyle } from './coords'
+import { isNative, NativeSpeech } from './nativeSpeech'
 
 export type SpeakOptions = {
   /** 話速。SpeechSynthesisUtterance.rate（0.1〜10、既定 1）。 */
@@ -24,6 +26,7 @@ export type SpeakItem = {
 
 /** この環境で Web Speech API（発話）が使えるか。 */
 export function isTTSSupported(): boolean {
+  if (isNative) return true
   return (
     typeof window !== 'undefined' &&
     'speechSynthesis' in window &&
@@ -63,6 +66,10 @@ class Tts {
    * 無音の短い発話を 1 度流して、以降のプログラム発話を許可させる。
    */
   unlock(): void {
+    if (isNative) {
+      this.unlocked = true
+      return
+    }
     if (!this.supported) return
     try {
       // 念のため保留中をクリアしてから無音を流す
@@ -81,6 +88,12 @@ class Tts {
    * 既に発話中の場合は speechSynthesis のキューに積まれ、順に再生される。
    */
   speak(text: string, opts: SpeakOptions = {}): Promise<void> {
+    if (isNative) {
+      return NativeSpeech.speak({ text, rate: clampRate(opts.rate) }).then(
+        () => undefined,
+        () => undefined,
+      )
+    }
     if (!this.supported) return Promise.resolve()
     return new Promise<void>((resolve) => {
       const u = new SpeechSynthesisUtterance(text)
@@ -109,6 +122,10 @@ class Tts {
 
   /** 進行中・保留中の発話をすべて中断する。 */
   cancel(): void {
+    if (isNative) {
+      void NativeSpeech.stop().catch(() => undefined)
+      return
+    }
     if (!this.supported) return
     try {
       window.speechSynthesis.cancel()

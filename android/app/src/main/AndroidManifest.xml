@@ -24,6 +24,12 @@
 
         </activity>
 
+        <!-- 00「ただ読み上げ」を画面オフ・他アプリ使用中も続けるためのサービス（有料機能） -->
+        <service
+            android:name=".speech.ListenService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -38,4 +44,17 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- バックグラウンド読み上げ（フォアグラウンドサービス＋通知の停止ボタン） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 画面オフ中も次の読み上げが遅れないようにする -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Android 11 以降、端末の読み上げエンジンを見つけるのに必要 -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
 </manifest>

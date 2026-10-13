@@ -1,10 +1,10 @@
-# Android リリース手順書（Capacitor + Google Play + RevenueCat）
+# Android リリース手順書（Capacitor + Google Play）
 
 **この手順の多くは、あなたのPC・実機・各アカウントが必要**です（サンドボックス/CIでは実行不可）。
 リポジトリ側の準備（Capacitor 化・課金の抽象化・プライバシーポリシー・文面）は済んでいます。
 
 - iOS は今回見送り（Android の反応を見てから）。
-- 有料アンロックで解除されるのは **03 系列記憶 ＋ バックグラウンド再生**。04/05 は未実装で購入者に今後追加（追加課金なし）。
+- 有料アンロック（300円・買い切り）で解除されるのは **有料モード ＋ 00 のバックグラウンド読み上げ**。
 
 ---
 
@@ -22,46 +22,35 @@ npm run cap:open     # Android Studio で android/ を開く
 
 - Android Studio で実機/エミュレータに Run。白画面なら `npm run build` の再実行と `npx cap sync android` を確認。
 - アプリID: `com.eeeme.shogimentalboard`（`capacitor.config.ts` / `android/app/build.gradle`）。
-- バージョンは `android/app/build.gradle` の `versionCode` / `versionName`。更新ごとに `versionCode` を+1。
+- バージョンは CI が自動で付ける（5章）。手元ビルドの既定は versionCode 1 / versionName 1.0.0。
 
 > **重要**: ネイティブ配信用ビルドは **base を `/`** にする（`BASE_PATH` を未指定 = 既定 `/`）。
 > GitHub Pages 用の `BASE_PATH=/shogi-mental-board/` はネイティブでは使わない。
 
-## 2. バックグラウンド再生（00モード）
+## 2. バックグラウンド読み上げ（00モード・実装済み）
 
-Web の `speechSynthesis` は画面ロックで停止する（`docs/spike-background-audio.md`）。
-ネイティブでは以下で実装する（**実機での実装・確認が必要**）:
+Web の `speechSynthesis` は画面ロックで止まり、Android の WebView では使えない端末もあるため、
+**読み上げはすべて Android 標準の TextToSpeech（ネイティブ）で行う**。
 
-1. **音声素材**: `coords` のカタカナ読みで **81マス分の音声ファイル**を生成し `public/audio/` に置く
-   （まず81個で自然さ確認 → 重ければ「筋9＋段9＝18クリップ連結」に最適化）。
-   - 生成例(macOS): `say -v Kyoko -o out.aiff "ナナロク"` → `ffmpeg` で mp3/opus 化。クラウドTTSでも可。
-2. **再生**: 単一の `<audio>` を使い回し、`ended` で次マスへ差し替え。`lib/mediaSession.ts` で
-   ロック画面コントロールを出す（メタデータ＋play/pause/stop）。
-3. **継続**: Android は **Foreground Service**（通知常駐）で画面オフでも継続。
-   - 既存のコミュニティ製プラグイン（例: foreground-service 系）を使うか、簡単な Capacitor プラグインを自作。
-   - iOS 対応時は `UIBackgroundModes: audio` ＋ `AVAudioSession`。
-4. バックグラウンド再生は**有料アンロック対象**（`useBackgroundUnlocked()` が true のときのみ提供）。
+- `android/.../speech/SpeechEngine.java`: TextToSpeech をアプリ全体で1つだけ持つ。
+- `android/.../speech/ListenService.java`: フォアグラウンドサービス（種類 `mediaPlayback`）。
+  通知を出している間、画面オフ・他アプリ使用中でも読み上げを続ける。通知の「停止」で止まる。
+  次に読むマスはサービス側で選ぶ（画面オフ中は JavaScript が止まるため）。
+- `android/.../speech/NativeSpeechPlugin.java`: 画面（`src/lib/nativeSpeech.ts`）から呼ぶ窓口。
+- バックグラウンド継続は**購入者のみ**（`ListenScreen` で `isNative && isPro` のとき使う）。無料の場合は画面表示中だけ読み上げる。
+- Android 13 以降は通知の許可を求める。許可しなくても読み上げは続く（通知が出ないだけ）。
 
-## 3. 課金（RevenueCat・買い切り）
+## 3. 課金（買い切り・実装済み）
 
-現状は `src/lib/entitlement.ts` の `useEntitlement()` がダミー（`isPro:false`）、
-購入/復元は `src/lib/purchase.ts` がダミー。ここを RevenueCat に差し替える。
+詳細は `docs/monetization.md`。Play Console 側で次を行う。
 
-1. **Google Play Console**（$25・初回のみ）でアプリ登録 →
-   **アプリ内商品（管理対象＝非消費型 / Non-Consumable）** を1つ作成（例: `unlock_all`）。
-2. **RevenueCat** アカウント作成 → プロジェクトに Google Play を接続 →
-   Entitlement（例 `pro`）を作り、上記商品を紐付け。**公開APIキー**を取得。
-3. 依存追加: `npm i @revenuecat/purchases-capacitor` → `npx cap sync android`。
-4. 差し替え:
-   - アプリ起動時に `Purchases.configure({ apiKey })`。
-   - `useEntitlement()`: `Purchases.getCustomerInfo()` の `entitlements.active['pro']` の有無で `isPro` を返す
-     （更新は listener で state に反映）。
-   - `purchase.ts` の `purchaseUnlock()` = `Purchases.purchaseStoreProduct(...)`、
-     `restorePurchases()` = `Purchases.restorePurchases()`。成功時に entitlement を再取得。
-5. これで **03・バックグラウンド再生がロック → 購入/復元で解除**。00/01/02 は無制限のまま。
-6. **「購入を復元」は設定画面に実装済み**（ダミー→RevenueCatに接続するだけ）。
-
-> レシート検証は RevenueCat がサーバーレスで担うため「バックエンドなし」を維持できる。
+1. **収益化 → 商品 → アプリ内アイテム** で商品を作成。
+   - 商品ID: **`unlock_all`**（コードと一致させる。後から変更不可）
+   - 価格: **300円**
+   - 状態を **有効** にする
+2. **アプリのコンテンツ → フォアグラウンド サービス** の申告で「メディアの再生」を選び、
+   用途（画面オフでもマス目の読み上げを続ける）と、動作がわかる動画のリンクを登録する。
+3. 購入テストは **ライセンス テスター** に自分の Google アカウントを登録して行う（実際には課金されない）。
 
 ## 4. ストア素材・プライバシー
 
@@ -69,41 +58,35 @@ Web の `speechSynthesis` は画面ロックで停止する（`docs/spike-backgr
 - **プライバシーポリシー（必須・公開URL）**: `https://eeeme.github.io/shogi-mental-board/privacy.html`（公開済み）。
 - **スクリーンショット/アイコン/フィーチャーグラフィック**は実機/エミュレータで用意（`docs/store-listing.md` 参照）。
 
-## 5. リリース工程（Google Play）— 最短でも14日
+## 5. ビルドとリリース（GitHub Actions）
 
-個人アカウント（2023-11-13以降作成）は製品版公開前に
-**「12人以上のテスターが14日連続でオプトインしたクローズドテスト」が必須**（実インストール実績が要る）。
-
-1. **署名鍵**を作成（Play アプリ署名 / アップロード鍵）。`android/app/build.gradle` に署名設定 →
-   リリースビルド **AAB**（`.aab`）を生成（Android Studio の Generate Signed Bundle）。
-2. Play Console で **クローズドテストのトラック**を作り AAB をアップロード。
-3. **テスターを 12人以上**（離脱に備え 15〜20人のバッファ）集め、**オプトインリンク**から
-   インストール・起動してもらう。**14日連続**カウント。
-4. **テスト期間中に 2〜3回アップデート**を配信（軽微修正で可＝発音微調整・04モード実装など）。
-   → 製品版アクセス申請の通過率が上がる。
-5. 14日達成後、**製品版アクセスを申請 → 審査 → 公開**。
+- `.github/workflows/android.yml` が AAB を作る。
+  - main への push / 手動実行: 署名付き AAB を作り、成果物 `shogi-mental-board-<番号>` に置く。
+  - プルリクエスト: ビルドが通るかだけ確認（署名なし）。
+- versionCode は実行番号（`run_number`）、versionName は `package.json` の `version`。
+- 署名には GitHub の Secrets が必要: `ANDROID_KEYSTORE_BASE64`（アップロード鍵の base64）、`ANDROID_KEYSTORE_PASSWORD`。鍵の別名は `upload`。
+- 組織アカウントのため、個人アカウントにある「12人・14日のクローズドテスト」の要件はない。
+  内部テストで確認してから製品版に出す。
 
 ## 6. 費用まとめ
 
-- Google Play Console: **初回 $25**。
-- （将来 iOS: Apple Developer Program 年 $99。今回は不要）
-- RevenueCat: 個人規模なら**無料枠**で足りる。
+- Google Play Console: 登録料（支払い済み）。
+- Google Play の手数料（売上の15%）。ほかの外部サービス費用はなし。
 
 ---
 
 ## リポジトリ側で済んでいること（チェック）
 
-- [x] Capacitor 導入・`android/` 生成・アプリID/名称設定（`npm run cap:sync` で同期）
-- [x] 課金モデル刷新（回数制限廃止 → 買い切りアンロック）と抽象化（`entitlement.ts` / `purchase.ts`）
-- [x] ロックUI（ホームのロック表示・ポップアップの購入導線・正直な文面）
-- [x] 「購入を復元」ボタン（設定）※中身は RevenueCat 接続待ち
-- [x] プライバシーポリシー公開（GitHub Pages）
-- [x] ストア文面（`docs/store-listing.md`）
+- [x] Capacitor 導入・アプリID/名称設定
+- [x] ネイティブ読み上げ・バックグラウンド継続（フォアグラウンドサービス）
+- [x] 買い切り課金（`unlock_all` / 300円）・購入を復元・状態の再確認
+- [x] GitHub Actions での AAB ビルド
+- [x] プライバシーポリシー公開・ストア文面（`docs/store-listing.md`）
 
 ## あなた（リリース担当）がやること
 
-- [ ] Android Studio で実機ビルド確認
-- [ ] バックグラウンド再生のネイティブ実装＋実機確認（音声素材生成含む）
-- [ ] RevenueCat 接続（`useEntitlement`/`purchase` の差し替え）＋購入・復元の実機確認
+- [ ] GitHub Secrets（`ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD`）の登録
+- [ ] Play Console: アプリ内アイテム `unlock_all`（300円・有効）作成、フォアグラウンド サービスの申告
+- [ ] 実機確認: 画面オフでの読み上げ継続、通知の「停止」、購入、購入を復元
 - [ ] スクショ等ストア素材の作成
-- [ ] Play Console 登録 → クローズドテスト14日 → 製品版公開
+- [ ] 内部テスト → 製品版公開
